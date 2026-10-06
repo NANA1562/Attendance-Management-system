@@ -9,16 +9,16 @@ const subscribe = (cb: () => void) => {
 };
 const snapshot = () => Math.floor(Date.now() / 15000) * 15000;
 
-export function Clock({ timeZone }: { timeZone: string }) {
+export function Clock({ timeZone, size = "md" }: { timeZone: string; size?: "md" | "xl" }) {
   const ts = useSyncExternalStore(subscribe, snapshot, () => null);
-  if (ts === null) return null;
+  if (ts === null) return <div className={size === "xl" ? "h-28" : "h-12"} />;
   const now = new Date(ts);
   return (
-    <div className="text-right">
-      <div className="text-2xl font-semibold tabular-nums">
+    <div className={size === "xl" ? "" : "text-right"}>
+      <div className={size === "xl" ? "font-display text-7xl font-semibold tabular-nums tracking-tight sm:text-8xl" : "font-display text-3xl font-semibold tabular-nums"}>
         {now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone })}
       </div>
-      <div className="text-sm text-stone-500">
+      <div className={size === "xl" ? "mt-2 text-lg text-forest-200" : "text-sm text-forest-200"}>
         {now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone })}
       </div>
     </div>

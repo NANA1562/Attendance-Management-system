@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, desc, eq } from "drizzle-orm";
+import { ArrowLeft, CalendarRange, KeyRound, Lock, Palmtree, UserRound } from "lucide-react";
 import { z } from "zod";
 import { db } from "@/db";
 import { employees, jobRoles, leave, schedules } from "@/db/schema";
 import { ActionForm, SubmitButton } from "@/components/action-form";
-import { Button, Card, Field, Input, Pill, Select, StatusBadge } from "@/components/ui";
+import { FormButton } from "@/components/form-button";
+import { Avatar, Card, cx, Empty, Field, Input, Pill, Select, StatusBadge, Table, Td, Th } from "@/components/ui";
 import { clock, DAY_NAMES, duration, hours, prettyDate } from "@/lib/format";
 import { addDays } from "@/lib/time";
 import { employeeDays, today } from "@/server/attendance";
@@ -37,22 +39,60 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
   ]);
   const tz = settings.timezone;
   const locked = employee.lockedUntil && employee.lockedUntil > new Date();
+  const role = roles.find((r) => r.id === employee.roleId);
+
+  // 14-day summary
+  const worked = history.filter((d) => d.result.clockInAt);
+  const lateDays = history.filter((d) => d.result.status === "late" || d.result.status === "attendance_risk").length;
+  const absentDays = history.filter((d) => d.result.status === "absent").length;
+  const totalMinutes = Math.round(worked.reduce((s, d) => s + (d.result.hoursWorked ?? 0), 0) * 60);
+  const overtime = history.reduce((s, d) => s + d.result.overtimeMinutes, 0);
+  const weeklyMinutes = WEEK.reduce((s, d) => {
+    const row = weekly.find((w) => w.dayOfWeek === d);
+    if (!row || row.isDayOff || !row.startTime || !row.endTime) return s;
+    const [sh, sm] = row.startTime.split(":").map(Number);
+    const [eh, em] = row.endTime.split(":").map(Number);
+    return s + (eh * 60 + em - (sh * 60 + sm)) - row.breakMinutes;
+  }, 0);
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link href="/manage/staff" className="text-sm text-stone-500">← Staff</Link>
-        <h1 className="mt-2 text-2xl font-semibold">{employee.fullName}</h1>
-        <div className="mt-1 flex items-center gap-2 text-sm text-stone-600">
-          Staff ID <span className="font-mono font-semibold">{employee.staffCode}</span>
-          <span className="capitalize">· {employee.level}</span>
-          {employee.status === "inactive" && <Pill>Inactive</Pill>}
-          {locked && <Pill tone="bg-red-100 text-red-800">Locked out</Pill>}
+      <Link href="/manage/staff" className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-2 hover:text-ink"><ArrowLeft className="h-4 w-4" /> All staff</Link>
+
+      {/* Profile header */}
+      <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
+        <div className="brand-texture h-20 bg-forest-900" />
+        <div className="flex flex-wrap items-end gap-5 px-6 pb-6">
+          <Avatar name={employee.fullName} size="xl" className="-mt-8 ring-4 ring-surface" />
+          <div className="min-w-0 flex-1 pt-3">
+            <h1 className="font-display text-3xl font-semibold tracking-tight">{employee.fullName}</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="rounded-md bg-sunken px-2 py-1 font-mono text-xs font-bold">ID {employee.staffCode}</span>
+              {employee.level === "senior" ? <Pill tone="bg-gold-100 text-gold-700">Senior</Pill> : <Pill>Junior</Pill>}
+              {role && <Pill tone="bg-forest-50 text-forest-700">{role.name}</Pill>}
+              {employee.status === "inactive" && <Pill tone="bg-sunken text-muted">Inactive</Pill>}
+              {locked && <Pill tone="bg-red-50 text-absent"><Lock className="h-3 w-3" /> Locked out</Pill>}
+            </div>
+          </div>
+          <dl className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4 lg:w-auto">
+            {[
+              ["Days worked", String(worked.length), "last 14 days"],
+              ["Late", String(lateDays), absentDays ? `${absentDays} absent` : "no absences"],
+              ["Hours", duration(totalMinutes) || "0m", "last 14 days"],
+              ["Overtime", duration(overtime) || "0m", "last 14 days"],
+            ].map(([label, value, sub]) => (
+              <div key={label} className="rounded-xl bg-canvas px-4 py-3">
+                <dt className="text-xs font-semibold text-muted">{label}</dt>
+                <dd className="font-display text-2xl font-semibold tabular-nums">{value}</dd>
+                <dd className="text-[11px] text-muted">{sub}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
-      </div>
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="Details">
+        <Card title={<span className="flex items-center gap-2"><UserRound className="h-4 w-4 text-gold-600" /> Details</span>}>
           <ActionForm action={updateStaff} className="space-y-4">
             <input type="hidden" name="employeeId" value={employee.id} />
             <Field label="Full name"><Input name="fullName" defaultValue={employee.fullName} required /></Field>
@@ -85,12 +125,15 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
           </ActionForm>
         </Card>
 
-        <Card title="Access">
+        <Card title={<span className="flex items-center gap-2"><KeyRound className="h-4 w-4 text-gold-600" /> Access</span>}>
           <div className="space-y-5">
             <ActionForm action={resetPin}>
               <input type="hidden" name="employeeId" value={employee.id} />
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-sm text-stone-600">PINs are stored securely and can't be viewed. Reset to give them a new one.</p>
+              <div className="flex items-center justify-between gap-4 rounded-xl bg-canvas p-4">
+                <div>
+                  <div className="text-sm font-semibold">Clock-in PIN</div>
+                  <p className="text-xs text-muted">Stored securely and never shown. Reset to issue a new one.</p>
+                </div>
                 <SubmitButton variant="secondary" pendingLabel="Resetting…">Reset PIN</SubmitButton>
               </div>
             </ActionForm>
@@ -109,58 +152,51 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
             </ActionForm>
 
             {locked && (
-              <form action={unlockStaff} className="flex items-center justify-between gap-4">
+              <form action={unlockStaff} className="flex items-center justify-between gap-4 rounded-xl bg-red-50 p-4">
                 <input type="hidden" name="employeeId" value={employee.id} />
-                <p className="text-sm text-red-700">Locked after too many wrong attempts.</p>
-                <Button variant="danger">Unlock now</Button>
+                <p className="text-sm font-semibold text-absent">Locked after too many wrong PINs.</p>
+                <FormButton variant="danger">Unlock now</FormButton>
               </form>
             )}
           </div>
         </Card>
       </div>
 
-      <Card title="Weekly schedule">
+      <Card
+        title={<span className="flex items-center gap-2"><CalendarRange className="h-4 w-4 text-gold-600" /> Weekly schedule</span>}
+        description={`${duration(weeklyMinutes) || "0m"} expected per week after breaks. Unticked days are days off.`}
+      >
         <ActionForm action={saveSchedule}>
           <input type="hidden" name="employeeId" value={employee.id} />
-          <div className="-mx-5 overflow-x-auto">
-            <table className="w-full min-w-[520px] text-sm">
-              <thead className="text-left text-xs uppercase text-stone-500">
-                <tr className="border-b border-stone-200">
-                  <th className="px-5 py-2">Day</th>
-                  <th className="px-2 py-2">Working</th>
-                  <th className="px-2 py-2">Start</th>
-                  <th className="px-2 py-2">End</th>
-                  <th className="px-5 py-2">Break (min)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {WEEK.map((d) => {
-                  const row = weekly.find((s) => s.dayOfWeek === d);
-                  const working = !!row && !row.isDayOff;
-                  return (
-                    <tr key={d} className="border-b border-stone-100 last:border-0">
-                      <td className="px-5 py-2 font-medium">{DAY_NAMES[d]}</td>
-                      <td className="px-2 py-2"><input type="checkbox" name={`work_${d}`} defaultChecked={working} className="h-5 w-5" /></td>
-                      <td className="px-2 py-2"><Input type="time" name={`start_${d}`} defaultValue={row?.startTime?.slice(0, 5) ?? "08:00"} className="w-32" /></td>
-                      <td className="px-2 py-2"><Input type="time" name={`end_${d}`} defaultValue={row?.endTime?.slice(0, 5) ?? "17:00"} className="w-32" /></td>
-                      <td className="px-5 py-2">
-                        <Input type="number" name={`break_${d}`} min={0} max={240} defaultValue={working ? row!.breakMinutes : settings.defaultBreakMinutes} className="w-24" />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="grid gap-2">
+            {WEEK.map((d) => {
+              const row = weekly.find((s) => s.dayOfWeek === d);
+              const working = !!row && !row.isDayOff;
+              return (
+                <div key={d} className="grid grid-cols-[auto_1fr] items-center gap-3 rounded-xl border border-line px-4 py-3 has-[:checked]:border-forest-200 has-[:checked]:bg-forest-50/40 sm:grid-cols-[160px_1fr_1fr_120px] sm:gap-4">
+                  <label className="flex items-center gap-3 font-semibold">
+                    <input type="checkbox" name={`work_${d}`} defaultChecked={working} className="h-5 w-5 accent-[var(--color-forest-600)]" />
+                    {DAY_NAMES[d]}
+                  </label>
+                  <div className="col-span-2 grid grid-cols-3 gap-2 sm:contents">
+                    <Input type="time" name={`start_${d}`} defaultValue={row?.startTime?.slice(0, 5) ?? "08:00"} aria-label={`${DAY_NAMES[d]} start`} />
+                    <Input type="time" name={`end_${d}`} defaultValue={row?.endTime?.slice(0, 5) ?? "17:00"} aria-label={`${DAY_NAMES[d]} end`} />
+                    <div className="relative">
+                      <Input type="number" name={`break_${d}`} min={0} max={240} defaultValue={working ? row!.breakMinutes : settings.defaultBreakMinutes} aria-label={`${DAY_NAMES[d]} break minutes`} className="pr-12" />
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted">min</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <p className="mt-3 text-xs text-stone-500">
-            Unticked days are off days. The break allowance is deducted from hours worked; a longer break deducts the actual time.
-          </p>
-          <SubmitButton className="mt-3">Save schedule</SubmitButton>
+          <p className="mt-3 text-xs text-muted">Start, end and break allowance per day. Once someone has worked half their shift, the allowance is deducted; a longer break deducts the real time.</p>
+          <SubmitButton className="mt-4">Save schedule</SubmitButton>
         </ActionForm>
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="Record leave">
+        <Card title={<span className="flex items-center gap-2"><Palmtree className="h-4 w-4 text-gold-600" /> Record leave</span>}>
           <ActionForm action={addLeave} className="space-y-4" resetOnSuccess>
             <input type="hidden" name="employeeId" value={employee.id} />
             <div className="grid grid-cols-2 gap-3">
@@ -182,25 +218,28 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
           </ActionForm>
         </Card>
 
-        <Card title="Leave">
+        <Card title="Leave history">
           {leaves.length === 0 ? (
-            <p className="text-sm text-stone-500">No leave recorded.</p>
+            <Empty icon={Palmtree} title="No leave recorded" />
           ) : (
-            <ul className="divide-y divide-stone-100 text-sm">
+            <ul className="space-y-2">
               {leaves.map((l) => (
-                <li key={l.id} className="flex items-center justify-between gap-3 py-2.5">
-                  <div className={l.status === "cancelled" ? "text-stone-400 line-through" : ""}>
-                    <div className="font-medium">
-                      {prettyDate(l.startDate)}{l.endDate !== l.startDate && ` – ${prettyDate(l.endDate)}`}
-                    </div>
-                    <div className="text-xs text-stone-500">
-                      {LEAVE_TYPE[l.leaveType]} · {DAY_PART[l.dayPart]}{l.reason && ` · ${l.reason}`}
+                <li key={l.id} className={cx("flex items-center justify-between gap-3 rounded-xl border border-line p-3", l.status === "cancelled" && "opacity-50")}>
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-50 text-leave"><Palmtree className="h-4 w-4" /></span>
+                    <div>
+                      <div className={cx("text-sm font-semibold", l.status === "cancelled" && "line-through")}>
+                        {prettyDate(l.startDate)}{l.endDate !== l.startDate && ` – ${prettyDate(l.endDate)}`}
+                      </div>
+                      <div className="text-xs text-muted">
+                        {LEAVE_TYPE[l.leaveType]} · {DAY_PART[l.dayPart]}{l.reason && ` · ${l.reason}`}{l.status === "cancelled" && " · cancelled"}
+                      </div>
                     </div>
                   </div>
                   {l.status === "active" && l.endDate >= now && (
                     <form action={cancelLeave}>
                       <input type="hidden" name="leaveId" value={l.id} />
-                      <Button variant="danger" className="px-3 py-1 text-xs">Cancel</Button>
+                      <FormButton variant="ghost" className="px-3 py-1.5 text-xs text-absent">Cancel</FormButton>
                     </form>
                   )}
                 </li>
@@ -210,44 +249,37 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
         </Card>
       </div>
 
-      <Card title="Last 14 days">
-        <div className="-mx-5 overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead className="text-left text-xs uppercase text-stone-500">
-              <tr className="border-b border-stone-200">
-                <th className="px-5 py-2">Date</th>
-                <th className="px-2 py-2">Shift</th>
-                <th className="px-2 py-2">Status</th>
-                <th className="px-2 py-2">In</th>
-                <th className="px-2 py-2">Out</th>
-                <th className="px-2 py-2">Break</th>
-                <th className="px-2 py-2">Hours</th>
-                <th className="px-2 py-2">Overtime</th>
-                <th className="px-5 py-2">Under</th>
-              </tr>
+      <Card title="Last 14 days" description="Worked out live from the schedule, leave and clock-ins.">
+        {history.length === 0 ? (
+          <Empty title="No history yet" />
+        ) : (
+          <Table minWidth={760}>
+            <thead className="border-b border-line">
+              <tr><Th>Date</Th><Th>Status</Th><Th>Shift</Th><Th>In</Th><Th>Out</Th><Th>Break</Th><Th>Hours</Th><Th>Over / under</Th></tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-line">
               {history.map(({ workDate, plan, result: r }) => (
-                <tr key={workDate} className="border-b border-stone-100 last:border-0">
-                  <td className="px-5 py-2">
-                    <Link href={`/manage?date=${workDate}`} className="hover:underline">{prettyDate(workDate)}</Link>
-                  </td>
-                  <td className="px-2 py-2 tabular-nums text-stone-600">{plan.kind === "working" ? `${plan.start}–${plan.end}` : "—"}</td>
-                  <td className="px-2 py-2">
-                    <StatusBadge status={r.status} />
-                    {r.missingClockOut && <Pill tone="ml-1 bg-red-100 text-red-800">No clock-out</Pill>}
-                  </td>
-                  <td className="px-2 py-2 tabular-nums">{clock(r.clockInAt, tz)}</td>
-                  <td className="px-2 py-2 tabular-nums">{clock(r.clockOutAt, tz)}</td>
-                  <td className="px-2 py-2 tabular-nums">{duration(r.breakMinutes)}</td>
-                  <td className="px-2 py-2 tabular-nums">{hours(r.hoursWorked)}</td>
-                  <td className="px-2 py-2 tabular-nums">{duration(r.overtimeMinutes)}</td>
-                  <td className="px-5 py-2 tabular-nums">{duration(r.undertimeMinutes)}</td>
+                <tr key={workDate} className="hover:bg-canvas/60">
+                  <Td><Link href={`/manage?date=${workDate}`} className="font-semibold hover:underline">{prettyDate(workDate)}</Link></Td>
+                  <Td>
+                    <div className="flex flex-wrap items-center gap-1">
+                      <StatusBadge status={r.status} />
+                      {r.missingClockOut && <Pill tone="bg-red-50 text-absent">No clock-out</Pill>}
+                    </div>
+                  </Td>
+                  <Td className="tabular-nums text-ink-2">{plan.kind === "working" ? `${plan.start}–${plan.end}` : "—"}</Td>
+                  <Td className="tabular-nums font-medium">{clock(r.clockInAt, tz)}</Td>
+                  <Td className="tabular-nums font-medium">{clock(r.clockOutAt, tz)}</Td>
+                  <Td className="tabular-nums text-ink-2">{duration(r.breakMinutes)}</Td>
+                  <Td className="tabular-nums font-semibold">{hours(r.hoursWorked)}</Td>
+                  <Td className="tabular-nums">
+                    {r.overtimeMinutes ? <span className="text-ok">+{duration(r.overtimeMinutes)}</span> : r.undertimeMinutes ? <span className="text-late">−{duration(r.undertimeMinutes)}</span> : <span className="text-muted">—</span>}
+                  </Td>
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
+          </Table>
+        )}
       </Card>
     </div>
   );

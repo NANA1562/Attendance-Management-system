@@ -2,6 +2,7 @@
 
 import type { ComponentProps } from "react";
 import { useFormStatus } from "react-dom";
+import { Check, Loader2 } from "lucide-react";
 import { Button } from "./ui";
 
 /**
@@ -21,13 +22,19 @@ export function FormButton({ children, pendingLabel, ...props }: ComponentProps<
 export function TickButton({ done, label }: { done: boolean; label: string }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left active:bg-stone-50 disabled:opacity-60">
+    <button
+      type="submit"
+      disabled={pending}
+      className="flex w-full items-center gap-3.5 rounded-xl px-2 py-2.5 text-left transition hover:bg-canvas active:scale-[0.99] disabled:opacity-60"
+    >
       <span
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 ${done ? "border-emerald-600 bg-emerald-600 text-white" : "border-stone-300"}`}
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 transition ${
+          done ? "border-forest-500 bg-forest-500 text-white" : "border-line-strong bg-surface"
+        }`}
       >
-        {pending ? "…" : done && "✓"}
+        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : done && <Check className="h-5 w-5 animate-pop" strokeWidth={3} />}
       </span>
-      <span className={done ? "text-stone-400 line-through" : ""}>{label}</span>
+      <span className={`text-[15px] font-medium ${done ? "text-muted line-through" : "text-ink"}`}>{label}</span>
     </button>
   );
 }

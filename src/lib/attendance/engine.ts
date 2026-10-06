@@ -155,6 +155,41 @@ export interface DayResult {
   /** Clocked in, never clocked out, and the shift (or day) is over. */
   missingClockOut: boolean;
   leaveId: string | null;
+  /** Worked and break periods in order, for drawing a timeline. */
+  segments: Segment[];
+}
+
+export interface Segment {
+  kind: "work" | "break";
+  from: Date;
+  to: Date;
+  /** Still running (no closing tap yet); `to` is now, capped at the end of the day. */
+  open: boolean;
+}
+
+/** Split a day's taps into worked and break periods. */
+export function segmentsFromTaps(taps: Tap[], workDate: string, now: Date, timeZone: string): Segment[] {
+  const dayEnd = zonedToUtc(addDays(workDate, 1), "00:00", timeZone);
+  const openEnd = now < dayEnd ? now : dayEnd;
+  const out: Segment[] = [];
+  let current: { kind: Segment["kind"]; from: Date } | null = null;
+  const close = (to: Date) => {
+    if (current && to > current.from) out.push({ ...current, to, open: false });
+    current = null;
+  };
+  for (const t of sortTaps(taps)) {
+    if (t.eventType === "clock_in" && !current) current = { kind: "work", from: t.eventAt };
+    else if (t.eventType === "break_start" && current?.kind === "work") {
+      close(t.eventAt);
+      current = { kind: "break", from: t.eventAt };
+    } else if (t.eventType === "break_end" && current?.kind === "break") {
+      close(t.eventAt);
+      current = { kind: "work", from: t.eventAt };
+    } else if (t.eventType === "clock_out") close(t.eventAt);
+  }
+  const last = current as { kind: Segment["kind"]; from: Date } | null;
+  if (last && openEnd > last.from) out.push({ ...last, to: openEnd, open: true });
+  return out;
 }
 
 export function computeDay(input: {
@@ -247,6 +282,7 @@ export function computeDay(input: {
     undertimeMinutes,
     missingClockOut,
     leaveId: plan.kind === "leave" ? plan.leaveId : (working?.leaveId ?? null),
+    segments: segmentsFromTaps(taps, workDate, now, tz),
   };
 }
 

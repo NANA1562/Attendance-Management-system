@@ -24,8 +24,11 @@ export function FrequencyFields({ today }: { today: string }) {
         <Field label="On">
           <div className="flex flex-wrap gap-2">
             {WEEK.map((d) => (
-              <label key={d} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-2.5 py-1.5 text-sm">
-                <input type="checkbox" name="daysOfWeek" value={d} /> {DAY_SHORT[d]}
+              <label
+                key={d}
+                className="cursor-pointer select-none rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-sm font-semibold text-ink-2 transition has-[:checked]:border-forest-600 has-[:checked]:bg-forest-700 has-[:checked]:text-white"
+              >
+                <input type="checkbox" name="daysOfWeek" value={d} className="sr-only" /> {DAY_SHORT[d]}
               </label>
             ))}
           </div>

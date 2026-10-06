@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, startTransition, useActionState, useContext, useEffect, useRef, type ComponentProps, type ReactNode } from "react";
+import { CircleAlert, CircleCheck, KeyRound } from "lucide-react";
 import { Button } from "./ui";
 
 export type ActionState = { error?: string; ok?: string; secret?: { label: string; value: string } } | null;
@@ -41,12 +42,23 @@ export function ActionForm({
       }}
     >
       <Pending.Provider value={pending}>{children}</Pending.Provider>
-      {state?.error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>}
-      {state?.ok && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{state.ok}</p>}
+      {state?.error && (
+        <p role="alert" className="mt-4 flex items-start gap-2 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm font-medium text-absent ring-1 ring-inset ring-red-200">
+          <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" /> {state.error}
+        </p>
+      )}
+      {state?.ok && (
+        <p className="mt-4 flex animate-fade-up items-start gap-2 rounded-xl bg-forest-50 px-3.5 py-2.5 text-sm font-medium text-forest-700 ring-1 ring-inset ring-forest-200">
+          <CircleCheck className="mt-0.5 h-4 w-4 shrink-0" /> {state.ok}
+        </p>
+      )}
       {state?.secret && (
-        <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm">
-          <div className="text-amber-900">{state.secret.label} — shown once, write it down:</div>
-          <div className="mt-1 font-mono text-2xl font-bold tracking-widest">{state.secret.value}</div>
+        <div className="mt-4 animate-fade-up rounded-xl bg-gold-50 p-4 ring-1 ring-inset ring-gold-200">
+          <div className="flex items-center gap-2 text-sm font-semibold text-gold-700">
+            <KeyRound className="h-4 w-4" /> {state.secret.label}
+          </div>
+          <div className="mt-2 font-mono text-4xl font-bold tracking-[0.3em] text-ink">{state.secret.value}</div>
+          <div className="mt-2 text-xs text-gold-700">Shown once only. Write it down and give it to them in person.</div>
         </div>
       )}
     </form>

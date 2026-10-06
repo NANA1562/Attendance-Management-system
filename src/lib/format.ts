@@ -13,18 +13,6 @@ export const STATUS_LABEL: Record<LiveStatus, string> = {
   not_in_yet: "Not in yet",
 };
 
-export const STATUS_TONE: Record<LiveStatus, string> = {
-  on_time: "bg-emerald-100 text-emerald-800",
-  grace: "bg-teal-100 text-teal-800",
-  late: "bg-amber-100 text-amber-800",
-  attendance_risk: "bg-orange-100 text-orange-800",
-  absent: "bg-red-100 text-red-800",
-  off_day: "bg-stone-100 text-stone-600",
-  worked_off_day: "bg-sky-100 text-sky-800",
-  on_leave: "bg-violet-100 text-violet-800",
-  not_in_yet: "bg-stone-100 text-stone-700",
-};
-
 export const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 export const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 

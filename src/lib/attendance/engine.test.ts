@@ -247,6 +247,26 @@ describe("breaks", () => {
   });
 });
 
+describe("timeline segments", () => {
+  it("splits the day into work and break periods", () => {
+    const r = day(
+      [tap("clock_in", "08:00"), tap("break_start", "12:00"), tap("break_end", "12:45"), tap("clock_out", "17:00")],
+      "18:00",
+    );
+    expect(r.segments.map((x) => [x.kind, x.from.toISOString().slice(11, 16), x.to.toISOString().slice(11, 16), x.open])).toEqual([
+      ["work", "08:00", "12:00", false],
+      ["break", "12:00", "12:45", false],
+      ["work", "12:45", "17:00", false],
+    ]);
+  });
+
+  it("an unfinished period runs to now and is marked open", () => {
+    const r = day([tap("clock_in", "08:00"), tap("break_start", "12:00")], "12:20");
+    expect(r.segments.at(-1)).toMatchObject({ kind: "break", open: true });
+    expect(r.segments.at(-1)!.to.toISOString().slice(11, 16)).toBe("12:20");
+  });
+});
+
 describe("tap state machine", () => {
   it("walks clock in → break → clock out", () => {
     expect(allowedActions(tapState([]))).toEqual(["clock_in"]);
