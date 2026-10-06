@@ -16,6 +16,7 @@ import {
 } from "@/db/schema";
 import type { ActionState } from "@/components/action-form";
 import { parseForm } from "@/lib/form";
+import { localDate } from "@/lib/time";
 import { checkbox, date, name, optional, password, time } from "@/lib/validation";
 import { audit } from "@/server/audit";
 import { hash, requireManager } from "@/server/auth";
@@ -285,6 +286,7 @@ const settingsSchema = z
     defaultBreakMinutes: minutes("Break", 240),
     lockoutAttempts: z.coerce.number().int().min(1).max(20),
     lockoutMinutes: z.coerce.number().int().min(1).max(1440),
+    photoOnTap: checkbox,
     timezone: z.string().refine((tz) => {
       try {
         new Intl.DateTimeFormat("en", { timeZone: tz });
@@ -427,4 +429,61 @@ export async function resetTablet() {
   await clearCookie("kiosk");
   await clearCookie("staff");
   redirect("/kiosk");
+}
+
+// ---------- rota: one-off changes for a single date ----------
+
+const dayShiftSchema = z.object({
+  employeeId: uuid,
+  date,
+  mode: z.enum(["work", "off", "reset"]),
+  start: z.string().optional(),
+  end: z.string().optional(),
+  breakMinutes: z.coerce.number().int().min(0).max(240).optional(),
+});
+
+export async function saveDayShift(_: ActionState, form: FormData): Promise<ActionState> {
+  const { employee: me, business, settings } = await requireManager();
+  const { ok, data, error } = parseForm(dayShiftSchema, form);
+  if (!ok) return { error };
+  const target = await ownEmployee(business.id, data.employeeId);
+  if (!target) return { error: "Employee not found." };
+  if (data.date < localDate(new Date(), settings.timezone)) return { error: "Past days can't be changed here." };
+
+  if (data.mode === "reset") {
+    await db
+      .delete(schedules)
+      .where(and(eq(schedules.employeeId, target.id), eq(schedules.shiftDate, data.date)));
+  } else {
+    if (data.mode === "work") {
+      if (!time.safeParse(data.start).success || !time.safeParse(data.end).success) return { error: "Set a start and end time." };
+      if (data.end! <= data.start!) return { error: "End must be after start (no night shifts)." };
+    }
+    const values = {
+      isDayOff: data.mode === "off",
+      startTime: data.mode === "work" ? data.start! : null,
+      endTime: data.mode === "work" ? data.end! : null,
+      breakMinutes: data.mode === "work" ? (data.breakMinutes ?? settings.defaultBreakMinutes) : 0,
+      createdBy: me.id,
+    };
+    await db
+      .insert(schedules)
+      .values({ businessId: business.id, employeeId: target.id, shiftDate: data.date, ...values })
+      .onConflictDoUpdate({
+        target: [schedules.employeeId, schedules.shiftDate],
+        // Matches the partial unique index schedules_employee_date_uq.
+        targetWhere: sql`shift_date IS NOT NULL`,
+        set: values,
+      });
+  }
+  await audit({
+    businessId: business.id,
+    employeeId: me.id,
+    action: "schedule_changed",
+    targetType: "employee",
+    targetId: target.id,
+    detail: `${data.date}: ${data.mode === "reset" ? "back to usual" : data.mode === "off" ? "day off" : `${data.start}–${data.end}`}`,
+  });
+  revalidatePath("/manage/rota");
+  return { ok: "Saved." };
 }

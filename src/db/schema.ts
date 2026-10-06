@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  customType,
   date,
   index,
   integer,
@@ -89,6 +90,8 @@ export const businessSettings = pgTable("business_settings", {
   defaultBreakMinutes: integer("default_break_minutes").notNull().default(60),
   lockoutAttempts: integer("lockout_attempts").notNull().default(4),
   lockoutMinutes: integer("lockout_minutes").notNull().default(3),
+  /** Take a photo on the tablet at clock-in and clock-out (stops buddy clock-ins). */
+  photoOnTap: boolean("photo_on_tap").notNull().default(true),
   timezone: text("timezone").notNull().default("Africa/Accra"),
   updatedBy: uuid("updated_by"),
   updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -450,4 +453,31 @@ export const auditLog = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("audit_log_business_idx").on(t.businessId, t.createdAt)],
+);
+
+// ---------- 16. tap photos (anti buddy clock-in) ----------
+// A small JPEG taken by the tablet at clock-in / clock-out. Stored in Postgres
+// (a few KB each) so there's no separate file service to run for the MVP.
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => "bytea",
+});
+
+export const tapPhotos = pgTable(
+  "tap_photos",
+  {
+    eventId: uuid("event_id")
+      .primaryKey()
+      .references(() => attendanceEvents.id, { onDelete: "cascade" }),
+    businessId: uuid("business_id")
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+    mimeType: text("mime_type").notNull().default("image/jpeg"),
+    data: bytea("data").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("tap_photos_business_idx").on(t.businessId, t.createdAt)],
 );

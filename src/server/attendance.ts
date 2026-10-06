@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db";
-import { attendance, attendanceEvents, employees, leave, schedules } from "@/db/schema";
+import { attendance, attendanceEvents, employees, leave, schedules, tapPhotos } from "@/db/schema";
 import {
   allowedActions,
   computeDay,
@@ -13,7 +13,7 @@ import {
   type RuleSettings,
   type Tap,
 } from "@/lib/attendance/engine";
-import { addDays, localDate } from "@/lib/time";
+import { addDays, localDate, weekday } from "@/lib/time";
 import { audit } from "./audit";
 import type { Employee, Settings } from "./auth";
 
@@ -168,7 +168,7 @@ const LABEL: Record<EventType, string> = {
  * Record a tap. Checks the tap is allowed in the employee's current state,
  * stores the event, then recalculates the day's attendance summary.
  */
-export async function recordTap(employee: Employee, settings: Settings, type: EventType, deviceId?: string) {
+export async function recordTap(employee: Employee, settings: Settings, type: EventType, photo?: Buffer | null) {
   const now = new Date();
   const workDate = localDate(now, settings.timezone);
 
@@ -209,14 +209,19 @@ export async function recordTap(employee: Employee, settings: Settings, type: Ev
       return { ok: false as const, error: `You can't ${LABEL[type]} right now.` };
     }
 
-    await tx.insert(attendanceEvents).values({
-      businessId: employee.businessId,
-      employeeId: employee.id,
-      attendanceId: att.id,
-      eventType: type,
-      eventAt: now,
-      deviceId,
-    });
+    const [event] = await tx
+      .insert(attendanceEvents)
+      .values({
+        businessId: employee.businessId,
+        employeeId: employee.id,
+        attendanceId: att.id,
+        eventType: type,
+        eventAt: now,
+      })
+      .returning({ id: attendanceEvents.id });
+    if (photo) {
+      await tx.insert(tapPhotos).values({ eventId: event.id, businessId: employee.businessId, employeeId: employee.id, data: photo });
+    }
 
     const result = computeDay({
       workDate,
@@ -326,4 +331,172 @@ export async function rangeOverview(businessId: string, settings: Settings, from
     days.push(day);
   }
   return { days, people: [...people.values()] };
+}
+
+export interface TapPhoto {
+  eventId: string;
+  eventType: EventType;
+  eventAt: Date;
+}
+
+/** Which clock-in / clock-out taps have a photo, for employees on given dates. */
+export async function photosFor(businessId: string, employeeIds: string[], from: string, to: string) {
+  if (employeeIds.length === 0) return new Map<string, { in?: TapPhoto; out?: TapPhoto; missing: boolean }>();
+  const rows = await db
+    .select({
+      eventId: attendanceEvents.id,
+      eventType: attendanceEvents.eventType,
+      eventAt: attendanceEvents.eventAt,
+      employeeId: attendanceEvents.employeeId,
+      workDate: attendance.workDate,
+      photo: tapPhotos.eventId,
+    })
+    .from(attendanceEvents)
+    .innerJoin(attendance, eq(attendance.id, attendanceEvents.attendanceId))
+    .leftJoin(tapPhotos, eq(tapPhotos.eventId, attendanceEvents.id))
+    .where(
+      and(
+        eq(attendance.businessId, businessId),
+        inArray(attendance.employeeId, employeeIds),
+        gte(attendance.workDate, from),
+        lte(attendance.workDate, to),
+        eq(attendanceEvents.isVoided, false),
+        inArray(attendanceEvents.eventType, ["clock_in", "clock_out"]),
+      ),
+    );
+  // Keyed by `${employeeId}:${workDate}`.
+  const out = new Map<string, { in?: TapPhoto; out?: TapPhoto; missing: boolean }>();
+  for (const r of rows) {
+    const key = `${r.employeeId}:${r.workDate}`;
+    const entry = out.get(key) ?? { missing: false };
+    if (!r.photo) entry.missing = true;
+    else if (r.eventType === "clock_in") entry.in = { eventId: r.eventId, eventType: r.eventType, eventAt: r.eventAt };
+    else entry.out = { eventId: r.eventId, eventType: r.eventType, eventAt: r.eventAt };
+    out.set(key, entry);
+  }
+  return out;
+}
+
+export interface RotaCell {
+  date: string;
+  plan: DayPlan;
+  /** A one-off change for this date (rather than the weekly pattern). */
+  override: { startTime: string | null; endTime: string | null; isDayOff: boolean; breakMinutes: number } | null;
+  /** What actually happened, for today and past days. */
+  status: DayResult["status"] | null;
+  breakMinutes: number;
+}
+
+/** Every active employee's week: planned shift per day plus actual status so far. */
+export async function weekRota(businessId: string, settings: Settings, monday: string) {
+  const sunday = addDays(monday, 6);
+  const staff = await db
+    .select()
+    .from(employees)
+    .where(and(eq(employees.businessId, businessId), eq(employees.status, "active")))
+    .orderBy(asc(employees.fullName));
+  const data = await loadRange(
+    businessId,
+    staff.map((e) => e.id),
+    monday,
+    sunday,
+  );
+  const now = new Date();
+  const todayStr = localDate(now, settings.timezone);
+  return staff.map((e) => {
+    const cells: RotaCell[] = [];
+    for (let d = monday; d <= sunday; d = addDays(d, 1)) {
+      const row = buildRow(e, d, data, settings, now);
+      const o = data.scheds.find((s) => s.employeeId === e.id && s.shiftDate === d);
+      const weekly = data.scheds.find((s) => s.employeeId === e.id && s.shiftDate === null && s.dayOfWeek === weekday(d));
+      cells.push({
+        date: d,
+        plan: row.plan,
+        override: o ? { startTime: o.startTime, endTime: o.endTime, isDayOff: o.isDayOff, breakMinutes: o.breakMinutes } : null,
+        status: d <= todayStr && startDate(e, settings) <= d ? row.result.status : null,
+        breakMinutes: (o ?? weekly)?.breakMinutes ?? settings.defaultBreakMinutes,
+      });
+    }
+    return { employee: e, cells };
+  });
+}
+
+export interface PayrollRow {
+  employee: Employee;
+  scheduledDays: number;
+  daysWorked: number;
+  onTime: number;
+  late: number;
+  absent: number;
+  leaveDays: number;
+  offDaysWorked: number;
+  minutesWorked: number;
+  overtimeMinutes: number;
+  undertimeMinutes: number;
+  breakMinutes: number;
+  minutesLate: number;
+  missingClockOuts: number;
+}
+
+/**
+ * Totals per person for a period, plus every day's detail, for payroll.
+ * Only days up to today count, and only from each person's start date.
+ */
+export async function payrollReport(businessId: string, settings: Settings, from: string, to: string) {
+  const todayStr = localDate(new Date(), settings.timezone);
+  const end = to > todayStr ? todayStr : to;
+  const staff = await db
+    .select()
+    .from(employees)
+    .where(eq(employees.businessId, businessId))
+    .orderBy(asc(employees.fullName));
+  const data = await loadRange(
+    businessId,
+    staff.map((e) => e.id),
+    from,
+    end,
+  );
+  const now = new Date();
+  const daily: DayRow[] = [];
+  const rows: PayrollRow[] = staff.map((e) => {
+    const t: PayrollRow = {
+      employee: e,
+      scheduledDays: 0,
+      daysWorked: 0,
+      onTime: 0,
+      late: 0,
+      absent: 0,
+      leaveDays: 0,
+      offDaysWorked: 0,
+      minutesWorked: 0,
+      overtimeMinutes: 0,
+      undertimeMinutes: 0,
+      breakMinutes: 0,
+      minutesLate: 0,
+      missingClockOuts: 0,
+    };
+    for (let d = from; d <= end; d = addDays(d, 1)) {
+      if (startDate(e, settings) > d) continue;
+      const row = buildRow(e, d, data, settings, now);
+      const r = row.result;
+      // Inactive staff only appear for days they actually worked.
+      if (e.status !== "active" && !r.clockInAt) continue;
+      daily.push(row);
+      if (row.plan.kind === "working") t.scheduledDays++;
+      if (r.clockInAt) t.daysWorked++;
+      if (r.status === "on_time" || r.status === "grace") t.onTime++;
+      if (r.status === "late" || r.status === "attendance_risk") t.late++;
+      if (r.status === "absent") t.absent++;
+      if (r.status === "on_leave" || (row.plan.kind === "working" && row.plan.halfDay)) t.leaveDays += row.plan.kind === "leave" ? 1 : 0.5;
+      if (r.status === "worked_off_day") t.offDaysWorked++;
+      t.minutesWorked += Math.round((r.hoursWorked ?? 0) * 60);
+      t.overtimeMinutes += r.overtimeMinutes;
+      t.undertimeMinutes += r.undertimeMinutes;
+      t.breakMinutes += r.breakMinutes;
+      t.minutesLate += r.minutesLate;
+      if (r.missingClockOut) t.missingClockOuts++;
+    }
+    return t;
+  });
+  return { from, to: end, rows: rows.filter((r) => r.employee.status === "active" || r.daysWorked > 0), daily };
 }

@@ -61,6 +61,13 @@ export default async function SettingsPage() {
                 <Field label="Lock for (min)"><Input type="number" name="lockoutMinutes" defaultValue={s.lockoutMinutes} min={1} required /></Field>
               </div>
               <Field label="Timezone" hint="e.g. Africa/Accra, Africa/Lagos, Europe/London" className="mt-4 max-w-xs"><Input name="timezone" defaultValue={s.timezone} required /></Field>
+              <label className="mt-5 flex items-start gap-3 rounded-[12px] border border-line bg-subtle p-4">
+                <input type="checkbox" name="photoOnTap" defaultChecked={s.photoOnTap} className="mt-0.5 h-4 w-4 accent-[var(--color-ink)]" />
+                <span>
+                  <span className="block text-[13px] font-semibold">Photo at clock-in and clock-out</span>
+                  <span className="block text-xs text-muted">The tablet takes a small photo with each clock-in and clock-out so staff can't clock in for each other. Photos show next to the times on the dashboard.</span>
+                </span>
+              </label>
             </div>
             <SubmitButton>Save settings</SubmitButton>
           </ActionForm>

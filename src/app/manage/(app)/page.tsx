@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import {
   AlarmClock,
   CalendarDays,
+  CameraOff,
   ChevronLeft,
   ChevronRight,
   CircleCheckBig,
@@ -23,7 +24,8 @@ import { Avatar, Card, Chip, cx, Delta, Empty, Person, Progress, Ring, Stat, Sta
 import { clock, duration, hours, prettyDate } from "@/lib/format";
 import { addDays, localTime } from "@/lib/time";
 import { date as dateSchema } from "@/lib/validation";
-import { dayOverview, rangeOverview, today, type DayRow } from "@/server/attendance";
+import { dayOverview, photosFor, rangeOverview, today, type DayRow } from "@/server/attendance";
+import { NoPhoto, PhotoThumb } from "@/components/photo-thumb";
 import { requireManager } from "@/server/auth";
 import { ensureForDay, listTasks, taskCounts, type TaskWithSubtasks } from "@/server/tasks";
 import { ShiftTimeline } from "./shift-timeline";
@@ -53,10 +55,12 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
     rangeOverview(business.id, settings, addDays(workDate, -13), workDate),
   ]);
   if (workDate <= now) await ensureForDay(rows);
-  const [tasks, roles] = await Promise.all([
+  const [tasks, roles, photos] = await Promise.all([
     listTasks({ businessId: business.id, workDate }),
     db.select().from(jobRoles).where(eq(jobRoles.businessId, business.id)),
+    photosFor(business.id, rows.map((r) => r.employee.id), workDate, workDate),
   ]);
+  const photoOf = (id: string) => photos.get(`${id}:${workDate}`);
   const tc = taskCounts(tasks);
   const roleName = (id: string | null) => roles.find((r) => r.id === id)?.name ?? null;
 
@@ -207,7 +211,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
             <ShiftTimeline rows={rows} workDate={workDate} timeZone={tz} isToday={isToday} roleName={roleName} />
           )}
         </Card>
-        <Attention rows={rows} tasks={tasks} tz={tz} className="xl:col-span-4" />
+        <Attention rows={rows} tasks={tasks} tz={tz} noPhoto={settings.photoOnTap ? rows.filter((r) => photoOf(r.employee.id)?.missing).map((r) => r.employee.id) : []} className="xl:col-span-4" />
       </div>
 
       {/* Tasks */}
@@ -274,18 +278,29 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
                   <StatusBadge status={r.status} />
                   {r.minutesLate > 0 && <div className="mt-1 text-xs text-muted">{duration(r.minutesLate)} late</div>}
                 </Td>
-                <Td className="font-mono tabular-nums text-ink-2">{plan.kind === "working" ? `${plan.start}–${plan.end}` : "—"}</Td>
-                <Td className="font-mono tabular-nums">{clock(r.clockInAt, tz)}</Td>
-                <Td className="font-mono tabular-nums">{clock(r.clockOutAt, tz)}</Td>
+                <Td className="whitespace-nowrap font-mono tabular-nums text-ink-2">{plan.kind === "working" ? `${plan.start}–${plan.end}` : "—"}</Td>
+                <Td className="font-mono tabular-nums">
+                  <span className="flex items-center gap-2">
+                    {photoOf(e.id)?.in && <PhotoThumb eventId={photoOf(e.id)!.in!.eventId} label={`${e.fullName} · in ${clock(r.clockInAt, tz)}`} />}
+                    {clock(r.clockInAt, tz)}
+                  </span>
+                </Td>
+                <Td className="font-mono tabular-nums">
+                  <span className="flex items-center gap-2">
+                    {photoOf(e.id)?.out && <PhotoThumb eventId={photoOf(e.id)!.out!.eventId} label={`${e.fullName} · out ${clock(r.clockOutAt, tz)}`} />}
+                    {clock(r.clockOutAt, tz)}
+                  </span>
+                </Td>
                 <Td className="tabular-nums text-ink-2">{duration(r.breakMinutes)}</Td>
                 <Td className="font-medium tabular-nums">{hours(r.hoursWorked)}</Td>
-                <Td className="tabular-nums text-ok">{r.overtimeMinutes ? `+${duration(r.overtimeMinutes)}` : <span className="text-faint">—</span>}</Td>
-                <Td className="tabular-nums text-late">{r.undertimeMinutes ? `−${duration(r.undertimeMinutes)}` : <span className="text-faint">—</span>}</Td>
-                <Td className="max-w-[240px] text-xs text-ink-2">
+                <Td className="whitespace-nowrap tabular-nums text-ok">{r.overtimeMinutes ? `+${duration(r.overtimeMinutes)}` : <span className="text-faint">—</span>}</Td>
+                <Td className="whitespace-nowrap tabular-nums text-late">{r.undertimeMinutes ? `−${duration(r.undertimeMinutes)}` : <span className="text-faint">—</span>}</Td>
+                <Td className="min-w-[200px] max-w-[260px] text-xs text-ink-2">
                   <div className="flex flex-wrap gap-1">
                     {r.missingClockOut && <span className="rounded-full bg-red-50 px-2 py-0.5 font-medium text-red-700 ring-1 ring-inset ring-red-200/70">No clock-out</span>}
                     {r.earlyLeaveMinutes > 0 && <span className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700 ring-1 ring-inset ring-amber-200/70">Left {duration(r.earlyLeaveMinutes)} early</span>}
                     {plan.kind === "working" && plan.halfDay && <span className="rounded-full bg-sky-50 px-2 py-0.5 font-medium text-sky-700 ring-1 ring-inset ring-sky-200/70">Half-day leave</span>}
+                    {settings.photoOnTap && photoOf(e.id)?.missing && <NoPhoto />}
                   </div>
                   {lateReason && <div className="mt-1 italic text-muted">“{lateReason}”</div>}
                 </Td>
@@ -298,7 +313,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
   );
 }
 
-function Attention({ rows, tasks, tz, className }: { rows: DayRow[]; tasks: TaskWithSubtasks[]; tz: string; className?: string }) {
+function Attention({ rows, tasks, tz, noPhoto, className }: { rows: DayRow[]; tasks: TaskWithSubtasks[]; tz: string; noPhoto: string[]; className?: string }) {
   const items: { key: string; icon: LucideIcon; tone: string; name: string; id: string; text: string }[] = [];
   const now = new Date();
   for (const r of rows) {
@@ -308,6 +323,9 @@ function Attention({ rows, tasks, tz, className }: { rows: DayRow[]; tasks: Task
     if (r.result.status === "absent") items.push({ key: `ab-${e.id}`, icon: UserX, tone: "text-absent", name: e.fullName, id: e.id, text: `${first} is absent` });
     if (r.result.status === "attendance_risk" || r.result.status === "late") {
       items.push({ key: `lt-${e.id}`, icon: AlarmClock, tone: "text-late", name: e.fullName, id: e.id, text: `${first} was ${duration(r.result.minutesLate)} late${r.lateReason ? "" : ", no reason"}` });
+    }
+    if (noPhoto.includes(e.id)) {
+      items.push({ key: `np-${e.id}`, icon: CameraOff, tone: "text-late", name: e.fullName, id: e.id, text: `${first} tapped without a photo` });
     }
     if (e.lockedUntil && e.lockedUntil > now) {
       items.push({ key: `lk-${e.id}`, icon: Lock, tone: "text-muted", name: e.fullName, id: e.id, text: `${first} locked out until ${localTime(e.lockedUntil, tz)}` });

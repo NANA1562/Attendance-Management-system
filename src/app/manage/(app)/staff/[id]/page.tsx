@@ -10,7 +10,8 @@ import { FormButton } from "@/components/form-button";
 import { Avatar, Card, cx, Empty, Field, Input, Pill, Select, StatusBadge, Table, Td, Th } from "@/components/ui";
 import { clock, DAY_NAMES, duration, hours, prettyDate } from "@/lib/format";
 import { addDays } from "@/lib/time";
-import { employeeDays, today } from "@/server/attendance";
+import { employeeDays, photosFor, today } from "@/server/attendance";
+import { NoPhoto, PhotoThumb } from "@/components/photo-thumb";
 import { requireManager } from "@/server/auth";
 import { addLeave, cancelLeave, resetPin, saveSchedule, setPassword, unlockStaff, updateStaff } from "../../../actions";
 
@@ -31,11 +32,12 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
   if (!employee) notFound();
 
   const now = today(settings);
-  const [roles, weekly, leaves, history] = await Promise.all([
+  const [roles, weekly, leaves, history, photos] = await Promise.all([
     db.select().from(jobRoles).where(eq(jobRoles.businessId, business.id)).orderBy(asc(jobRoles.name)),
     db.select().from(schedules).where(eq(schedules.employeeId, employee.id)),
     db.select().from(leave).where(eq(leave.employeeId, employee.id)).orderBy(desc(leave.startDate)),
     employeeDays(employee, settings, addDays(now, -13), now),
+    photosFor(business.id, [employee.id], addDays(now, -13), now),
   ]);
   const tz = settings.timezone;
   const locked = employee.lockedUntil && employee.lockedUntil > new Date();
@@ -270,8 +272,19 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
                     </div>
                   </Td>
                   <Td className="tabular-nums text-ink-2">{plan.kind === "working" ? `${plan.start}–${plan.end}` : "—"}</Td>
-                  <Td className="font-mono tabular-nums">{clock(r.clockInAt, tz)}</Td>
-                  <Td className="font-mono tabular-nums">{clock(r.clockOutAt, tz)}</Td>
+                  <Td className="font-mono tabular-nums">
+                    <span className="flex items-center gap-2">
+                      {photos.get(`${employee.id}:${workDate}`)?.in && <PhotoThumb eventId={photos.get(`${employee.id}:${workDate}`)!.in!.eventId} label={`In ${clock(r.clockInAt, tz)} · ${prettyDate(workDate)}`} />}
+                      {clock(r.clockInAt, tz)}
+                    </span>
+                  </Td>
+                  <Td className="font-mono tabular-nums">
+                    <span className="flex items-center gap-2">
+                      {photos.get(`${employee.id}:${workDate}`)?.out && <PhotoThumb eventId={photos.get(`${employee.id}:${workDate}`)!.out!.eventId} label={`Out ${clock(r.clockOutAt, tz)} · ${prettyDate(workDate)}`} />}
+                      {clock(r.clockOutAt, tz)}
+                      {settings.photoOnTap && photos.get(`${employee.id}:${workDate}`)?.missing && workDate === now && <NoPhoto />}
+                    </span>
+                  </Td>
                   <Td className="tabular-nums text-ink-2">{duration(r.breakMinutes)}</Td>
                   <Td className="tabular-nums font-semibold">{hours(r.hoursWorked)}</Td>
                   <Td className="tabular-nums">

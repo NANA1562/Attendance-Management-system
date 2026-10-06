@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { LayoutGrid, ListChecks, MonitorSmartphone, Search, Settings, Tags, Users } from "lucide-react";
+import { CalendarRange, FileSpreadsheet, LayoutGrid, ListChecks, MonitorSmartphone, Search, Settings, Tags, Users } from "lucide-react";
 import { Avatar, cx } from "@/components/ui";
 
 const GROUPS = [
@@ -11,11 +11,18 @@ const GROUPS = [
     label: "Workspace",
     items: [
       { href: "/manage", label: "Today", icon: LayoutGrid },
-      { href: "/manage/staff", label: "Staff", icon: Users },
+      { href: "/manage/rota", label: "Rota", icon: CalendarRange },
       { href: "/manage/tasks", label: "Tasks", icon: ListChecks },
     ],
   },
-  { label: "Team", items: [{ href: "/manage/roles", label: "Roles", icon: Tags }] },
+  {
+    label: "Team",
+    items: [
+      { href: "/manage/staff", label: "Staff", icon: Users },
+      { href: "/manage/roles", label: "Roles", icon: Tags },
+    ],
+  },
+  { label: "Analytics", items: [{ href: "/manage/reports", label: "Payroll export", icon: FileSpreadsheet }] },
   {
     label: "Settings",
     items: [

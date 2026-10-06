@@ -34,6 +34,7 @@ import { ensureForDay, listTasks } from "@/server/tasks";
 import { Clock } from "../clock";
 import { doneOnTablet, lateReason, tap, toggleSubtask, updateTask } from "../actions";
 import { IdleReturn } from "./idle-return";
+import { PhotoTap } from "./photo-tap";
 
 const ACTION: Record<EventType, { label: string; variant: "green" | "amber" | "red"; icon: LucideIcon }> = {
   clock_in: { label: "Clock in", variant: "green", icon: LogIn },
@@ -122,8 +123,13 @@ function Connector() {
   );
 }
 
-function TapButton({ type }: { type: EventType }) {
+function TapButton({ type, photo }: { type: EventType; photo?: boolean }) {
   const { label, variant, icon: Icon } = ACTION[type];
+  if (photo && (type === "clock_in" || type === "clock_out")) {
+    return (
+      <PhotoTap type={type} />
+    );
+  }
   return (
     <form action={tap} className="flex-1">
       <input type="hidden" name="type" value={type} />
@@ -255,7 +261,7 @@ export default async function KioskMePage({ searchParams }: PageProps<"/kiosk/me
                         : "You're not scheduled today. Clocking in counts as working on an off day."
                 }
               >
-                {actions.includes("clock_in") && <TapButton type="clock_in" />}
+                {actions.includes("clock_in") && <TapButton type="clock_in" photo={settings.photoOnTap} />}
                 {askLateReason && (
                   <form action={lateReason} className="flex gap-2">
                     <input
@@ -310,7 +316,7 @@ export default async function KioskMePage({ searchParams }: PageProps<"/kiosk/me
                       : "Tap when you leave."
                 }
               >
-                {actions.includes("clock_out") && <TapButton type="clock_out" />}
+                {actions.includes("clock_out") && <TapButton type="clock_out" photo={settings.photoOnTap} />}
               </Step>
             </div>
           </div>

@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { businesses } from "@/db/schema";
 import type { ActionState } from "@/components/action-form";
 import { parseForm } from "@/lib/form";
+import { decodePhoto } from "@/lib/photo";
 import { recordTap, saveLateReason } from "@/server/attendance";
 import { checkCredentials, getKiosk, requireStaff } from "@/server/auth";
 import { clearCookie, setCookie } from "@/server/session";
@@ -38,9 +39,10 @@ const tapSchema = z.object({ type: z.enum(["clock_in", "break_start", "break_end
 
 export async function tap(form: FormData) {
   const { employee, settings } = await requireStaff();
-  const { ok, data, error } = parseForm(tapSchema, form);
+  const { ok, data, error } = parseForm(tapSchema.passthrough(), form);
   if (!ok) redirect(`/kiosk/me?error=${encodeURIComponent(error)}`);
-  const res = await recordTap(employee, settings, data.type);
+  const photo = settings.photoOnTap && (data.type === "clock_in" || data.type === "clock_out") ? decodePhoto(form.get("photo")) : null;
+  const res = await recordTap(employee, settings, data.type, photo);
   if (!res.ok) redirect(`/kiosk/me?error=${encodeURIComponent(res.error)}`);
   redirect(`/kiosk/me?done=${data.type}`);
 }

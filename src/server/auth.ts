@@ -78,11 +78,17 @@ async function loadPerson(businessId: string, employeeId: string) {
   return row;
 }
 
-/** The signed-in senior, or redirect to the dashboard login. */
-export const requireManager = cache(async () => {
+/** The signed-in senior, or null. */
+export const currentManager = cache(async () => {
   const c = await readCookie<PersonCookie>("manager");
   const row = c && (await loadPerson(c.businessId, c.employeeId));
-  if (!row || row.employee.level !== "senior") redirect("/manage/login");
+  return row && row.employee.level === "senior" ? row : null;
+});
+
+/** The signed-in senior, or redirect to the dashboard login. */
+export const requireManager = cache(async () => {
+  const row = await currentManager();
+  if (!row) redirect("/manage/login");
   return row;
 });
 

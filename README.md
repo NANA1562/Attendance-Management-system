@@ -1,4 +1,4 @@
-# Staff Attendance & Workforce Management — MVP
+# Clockwise — Staff Attendance & Workforce Management (MVP)
 
 Multi-business staff attendance and daily tasks for small businesses. Staff clock in on a shared tablet with a staff ID + PIN; seniors see attendance and task progress on a dashboard.
 
@@ -30,6 +30,15 @@ Business code **DEMO22**
 ### Demo flow
 
 Create business (`/setup`) → add staff → set schedule → tablet (`/kiosk`): staff ID + PIN → **Clock in** (status calculated) → break → **Clock out** (hours calculated) → manager dashboard (`/manage`) shows it, plus each person's tasks.
+
+## Features
+
+- **Clock-in tablet** (`/kiosk`): staff ID + PIN keypad with lockout; the day as three steps (clock in → break → clock out); late reason; today's checklist. A small photo is taken at clock-in and clock-out so staff can't clock in for each other (can be switched off in Settings).
+- **Today** (`/manage`): present / on time / late / absent with change vs the previous working day, 14-day attendance trend, punctuality leaderboard, shift timeline, needs-attention list, task progress, detail table with tap photos.
+- **Rota** (`/manage/rota`): everyone's week in one grid. Click a day to change just that day (different hours or a day off) without touching the weekly pattern; "Usual" puts it back.
+- **Payroll export** (`/manage/reports`): this/last week, this/last month or custom dates. Per-person days, lateness, absences, leave, hours, overtime, undertime and missing clock-outs, with **CSV downloads** (summary and day-by-day) that open in Excel/Sheets.
+- **Tasks** (`/manage/tasks`): today's kanban board and role/person templates with subtasks.
+- **Staff, Roles, Settings**: staff profiles with schedules, leave, PIN reset and 14-day history; job roles; per-business rules.
 
 ## How it's built
 
@@ -72,6 +81,6 @@ Create business (`/setup`) → add staff → set schedule → tablet (`/kiosk`):
 - Login uses signed HTTP-only cookies, not Supabase Auth (no email accounts).
 - No schedule row for a day is treated as an off day.
 
-## Not in the MVP
+## Not in the MVP yet
 
-Activities UI (tables exist), manual tap corrections/voids in the UI, offline tablet sync, photo proof, GPS, exports/reports.
+Activities UI (tables exist), manager corrections for wrong/missing taps (void + replace), offline tablet sync, WhatsApp alerts, GPS. Tap photos are kept in Postgres; a retention clean-up (e.g. delete after 90 days) should come before wide use.
