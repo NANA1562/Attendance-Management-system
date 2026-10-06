@@ -18,10 +18,10 @@ export default async function ManagerLoginPage() {
           <Field label="PIN"><Input name="pin" type="password" inputMode="numeric" maxLength={4} required /></Field>
         </div>
         <Field label="Dashboard password"><Input name="password" type="password" required /></Field>
-        <SubmitButton pendingLabel="Signing in…" className="h-12 w-full text-base">Sign in</SubmitButton>
+        <SubmitButton pendingLabel="Signing in…" className="h-10 w-full">Sign in</SubmitButton>
       </ActionForm>
-      <p className="mt-6 text-center text-sm text-ink-2">
-        New to the app? <Link href="/setup" className="font-semibold text-forest-700 hover:underline">Create a business</Link>
+      <p className="mt-6 text-center text-[13px] text-muted">
+        New to the app? <Link href="/setup" className="font-medium text-ink underline underline-offset-4">Create a business</Link>
       </p>
     </AuthShell>
   );

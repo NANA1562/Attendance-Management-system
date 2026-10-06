@@ -26,7 +26,7 @@ export function FrequencyFields({ today }: { today: string }) {
             {WEEK.map((d) => (
               <label
                 key={d}
-                className="cursor-pointer select-none rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-sm font-semibold text-ink-2 transition has-[:checked]:border-forest-600 has-[:checked]:bg-forest-700 has-[:checked]:text-white"
+                className="cursor-pointer select-none rounded-[9px] border border-line-strong bg-surface px-2.5 py-1 text-[13px] font-medium text-ink-2 shadow-card transition has-[:checked]:border-ink has-[:checked]:bg-ink has-[:checked]:text-white"
               >
                 <input type="checkbox" name="daysOfWeek" value={d} className="sr-only" /> {DAY_SHORT[d]}
               </label>

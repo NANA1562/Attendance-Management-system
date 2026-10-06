@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { jobRoles } from "@/db/schema";
 import { Logo } from "@/components/brand";
 import { FormButton, TickButton } from "@/components/form-button";
-import { cx, Progress, Ring, StatusBadge, TaskBadge } from "@/components/ui";
+import { Avatar, Card, cx, Pill, Progress, Ring, StatusBadge, TaskBadge } from "@/components/ui";
 import { allowedActions, type EventType } from "@/lib/attendance/engine";
 import { clock, duration, hours, STATUS_LABEL } from "@/lib/format";
 import { localTime } from "@/lib/time";
@@ -57,79 +57,84 @@ export default async function KioskMePage({ searchParams }: PageProps<"/kiosk/me
         : "Day off";
 
   return (
-    <main className="min-h-screen bg-canvas">
+    <main className="dot-grid min-h-screen px-4 py-5 sm:px-8">
       <IdleReturn seconds={done === "clock_out" ? 10 : 45} />
+      <div className="mx-auto max-w-3xl space-y-4">
+        <header className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Logo />
+            <span className="hidden h-5 w-px bg-line-strong sm:block" />
+            <span className="hidden text-[14px] font-medium text-ink-2 sm:block">{business.name}</span>
+          </div>
+          <form action={doneOnTablet}>
+            <FormButton variant="secondary" className="h-10 px-4">
+              <Check className="h-4 w-4" /> Done
+            </FormButton>
+          </form>
+        </header>
 
-      {/* Hero */}
-      <section className="brand-texture bg-forest-950 px-6 pb-16 pt-6 text-white sm:px-10">
-        <div className="mx-auto max-w-3xl">
-          <header className="flex items-center justify-between gap-4">
-            <Logo tone="light" />
-            <form action={doneOnTablet}>
-              <FormButton variant="secondary" className="border-white/20 bg-white/10 px-5 text-white hover:bg-white/20">
-                <Check className="h-4 w-4" /> Done
-              </FormButton>
-            </form>
-          </header>
+        {done && DONE_MESSAGE[done] && (
+          <div className="flex animate-fade-up items-center gap-4 rounded-[18px] border border-green-200 bg-green-50 p-4">
+            <span className="flex h-11 w-11 shrink-0 animate-pop items-center justify-center rounded-full bg-ok text-white">
+              <Check className="h-6 w-6" strokeWidth={3} />
+            </span>
+            <div>
+              <div className="text-[16px] font-semibold text-green-900">{DONE_MESSAGE[done]}</div>
+              <div className="text-[13px] text-green-800">
+                {done === "clock_in" && r.status !== "not_in_yet" && `${clock(r.clockInAt, tz)} · ${STATUS_LABEL[r.status]}`}
+                {done === "clock_out" && r.hoursWorked !== null && `${hours(r.hoursWorked)} worked today`}
+                {(done === "break_start" || done === "break_end") && `Recorded at ${localTime(new Date(), tz)}`}
+              </div>
+            </div>
+          </div>
+        )}
+        {error && <div className="rounded-[14px] border border-red-200 bg-red-50 p-4 text-[14px] font-medium text-red-700">{error}</div>}
 
-          {done && DONE_MESSAGE[done] && (
-            <div className="mt-8 flex animate-fade-up items-center gap-4 rounded-2xl bg-white/[0.07] p-4 ring-1 ring-inset ring-white/10">
-              <span className="flex h-12 w-12 shrink-0 animate-pop items-center justify-center rounded-full bg-gold-400 text-forest-950">
-                <Check className="h-7 w-7" strokeWidth={3} />
-              </span>
+        {/* Main card */}
+        <Card bodyClassName="p-6 sm:p-7">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <Avatar name={employee.fullName} size="lg" />
               <div>
-                <div className="text-lg font-bold">{DONE_MESSAGE[done]}</div>
-                <div className="text-sm text-forest-100">
-                  {done === "clock_in" && r.status !== "not_in_yet" && `${clock(r.clockInAt, tz)} · ${STATUS_LABEL[r.status]}`}
-                  {done === "clock_out" && r.hoursWorked !== null && `${hours(r.hoursWorked)} worked today`}
-                  {(done === "break_start" || done === "break_end") && `Recorded at ${localTime(new Date(), tz)}`}
+                <h1 className="text-[28px] font-semibold leading-tight tracking-tight">{greeting(tz)}, {employee.fullName.split(" ")[0]}</h1>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <Pill>{role?.name ?? (employee.level === "senior" ? "Senior" : "Staff")}</Pill>
+                  <Pill><span className="font-mono">{shift}</span></Pill>
+                  {r.clockInAt && <StatusBadge status={r.status} />}
+                  {r.state === "on_break" && <Pill tone="bg-amber-50 text-amber-700 ring-amber-200/70">On break</Pill>}
                 </div>
               </div>
             </div>
-          )}
-          {error && <div className="mt-8 rounded-2xl bg-red-500/15 p-4 font-semibold text-red-200 ring-1 ring-inset ring-red-400/30">{error}</div>}
-
-          <div className="mt-8">
-            <div className="text-sm font-semibold uppercase tracking-[0.14em] text-gold-400">{business.name}</div>
-            <h1 className="mt-1 font-display text-4xl font-semibold tracking-tight sm:text-5xl">
-              {greeting(tz)}, {employee.fullName.split(" ")[0]}
-            </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-              <span className="rounded-full bg-white/10 px-3 py-1 font-semibold">{role?.name ?? (employee.level === "senior" ? "Senior" : "Staff")}</span>
-              <span className="rounded-full bg-white/10 px-3 py-1 font-semibold tabular-nums">{shift}</span>
-              {r.clockInAt && <StatusBadge status={r.status} />}
-              {r.state === "on_break" && <span className="rounded-full bg-gold-400 px-3 py-1 font-bold text-forest-950">On break</span>}
-            </div>
           </div>
 
-          <dl className="mt-8 grid grid-cols-3 gap-3">
+          <dl className="mt-6 grid grid-cols-3 gap-2.5">
             {[
               ["Clocked in", clock(r.clockInAt, tz), r.minutesLate > 0 ? `${duration(r.minutesLate)} late` : null],
               ["Break", duration(r.breakMinutes), r.state === "on_break" ? "running" : null],
               ["Clocked out", clock(r.clockOutAt, tz), r.hoursWorked !== null ? `${hours(r.hoursWorked)} worked` : null],
             ].map(([label, value, sub]) => (
-              <div key={label} className="rounded-2xl bg-white/[0.06] p-4 ring-1 ring-inset ring-white/10">
-                <dt className="text-xs font-semibold uppercase tracking-wider text-forest-200">{label}</dt>
-                <dd className="mt-1 font-display text-3xl font-semibold tabular-nums">{value}</dd>
-                <dd className="h-4 text-xs text-gold-200">{sub}</dd>
+              <div key={label} className="rounded-[14px] border border-line bg-subtle p-4">
+                <dt className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted">{label}</dt>
+                <dd className="mt-1.5 text-[28px] font-semibold leading-none tracking-tight tabular-nums">{value}</dd>
+                <dd className="mt-1.5 h-4 text-xs text-muted">{sub}</dd>
               </div>
             ))}
           </dl>
 
           {actions.length > 0 ? (
-            <div className={cx("mt-6 grid gap-3", actions.length > 1 && "sm:grid-cols-2")}>
+            <div className={cx("mt-5 grid gap-2.5", actions.length > 1 && "sm:grid-cols-2")}>
               {actions.map((a) => {
                 const { label, hint, variant, icon: Icon } = ACTION[a];
                 return (
                   <form key={a} action={tap}>
                     <input type="hidden" name="type" value={a} />
-                    <FormButton variant={variant} pendingLabel="Saving…" className="h-24 w-full justify-start gap-4 rounded-3xl px-6 text-left">
-                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-black/10">
+                    <FormButton variant={variant} pendingLabel="Saving…" className="h-[88px] w-full justify-start gap-4 rounded-[18px] px-5 text-left">
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[12px] bg-white/15">
                         <Icon className="h-6 w-6" />
                       </span>
                       <span>
-                        <span className="block text-2xl font-bold">{label}</span>
-                        <span className="block text-sm font-medium opacity-80">{hint}</span>
+                        <span className="block text-[22px] font-semibold">{label}</span>
+                        <span className="block text-[13px] font-normal opacity-80">{hint}</span>
                       </span>
                     </FormButton>
                   </form>
@@ -137,87 +142,83 @@ export default async function KioskMePage({ searchParams }: PageProps<"/kiosk/me
               })}
             </div>
           ) : (
-            <div className="mt-6 rounded-3xl bg-white/[0.06] p-6 text-center ring-1 ring-inset ring-white/10">
-              <div className="font-display text-2xl font-semibold">That's a wrap for today</div>
-              <div className="mt-1 text-forest-100">{r.hoursWorked !== null && `${hours(r.hoursWorked)} worked. `}Thank you!</div>
+            <div className="mt-5 rounded-[18px] border border-line bg-subtle p-6 text-center">
+              <div className="text-[18px] font-semibold">That's a wrap for today</div>
+              <div className="mt-1 text-[14px] text-muted">{r.hoursWorked !== null && `${hours(r.hoursWorked)} worked. `}Thank you!</div>
             </div>
           )}
 
           {askLateReason && (
-            <form action={lateReason} className="mt-4 flex gap-2">
+            <form action={lateReason} className="mt-3 flex gap-2">
               <input
                 name="reason"
                 placeholder="Running late? Tell your manager why (optional)"
-                className="h-12 flex-1 rounded-xl bg-white/10 px-4 text-white placeholder:text-forest-200 outline-none ring-1 ring-inset ring-white/15 focus:ring-gold-400"
+                className="h-11 flex-1 rounded-[12px] border border-line-strong bg-surface px-3.5 text-[14px] shadow-card outline-none placeholder:text-faint focus:border-accent-400 focus:ring-4 focus:ring-accent-100"
               />
-              <FormButton variant="gold" className="h-12">Send</FormButton>
+              <FormButton variant="primary" className="h-11 px-5">Send</FormButton>
             </form>
           )}
-        </div>
-      </section>
+        </Card>
 
-      {/* Tasks sheet */}
-      <section className="relative -mt-8 rounded-t-[32px] bg-canvas px-6 pb-12 pt-8 sm:px-10">
-        <div className="mx-auto max-w-3xl">
-          <div className="mb-5 flex items-center justify-between gap-4">
-            <div>
-              <h2 className="font-display text-2xl font-semibold">My tasks today</h2>
-              <p className="text-sm text-muted">{tasks.length ? `${tasksDone} of ${tasks.length} done` : "Nothing assigned for today."}</p>
-            </div>
-            {tasks.length > 0 && (
-              <Ring value={tasksDone} max={tasks.length} size={64} stroke={7} track="stroke-sunken" bar="stroke-forest-500">
-                <span className="text-sm font-bold tabular-nums">{Math.round((tasksDone / tasks.length) * 100)}%</span>
-              </Ring>
-            )}
-          </div>
-
-          <div className="space-y-3">
+        {/* Tasks */}
+        <Card
+          title="My tasks today"
+          description={tasks.length ? `${tasksDone} of ${tasks.length} done` : "Nothing assigned for today."}
+          actions={tasks.length > 0 ? (
+            <Ring value={tasksDone} max={tasks.length} size={44} stroke={5} bar="stroke-ok">
+              <span className="text-[11px] font-semibold tabular-nums">{Math.round((tasksDone / tasks.length) * 100)}%</span>
+            </Ring>
+          ) : undefined}
+        >
+          <div className="space-y-2.5">
             {tasks.map((t) => {
               const doneCount = t.subtasks.filter((s) => s.status === "completed").length;
               return (
-                <div key={t.id} className={cx("rounded-2xl border bg-surface p-5 shadow-card", t.status === "completed" ? "border-forest-200" : "border-line")}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-lg font-bold">{t.title}</div>
-                      {t.description && <div className="text-sm text-ink-2">{t.description}</div>}
+                <article key={t.id} className="overflow-hidden rounded-[14px] border border-line">
+                  <header className="flex items-center justify-between gap-3 border-b border-line bg-subtle px-4 py-3">
+                    <div className="min-w-0">
+                      <div className="text-[15px] font-semibold">{t.title}</div>
+                      {t.description && <div className="text-[13px] text-muted">{t.description}</div>}
                     </div>
                     <TaskBadge status={t.status} />
-                  </div>
-                  {t.subtasks.length > 0 ? (
-                    <>
-                      <div className="mt-3 flex items-center gap-3">
-                        <Progress value={doneCount} max={t.subtasks.length} />
-                        <span className="text-xs font-semibold tabular-nums text-muted">{doneCount}/{t.subtasks.length}</span>
-                      </div>
-                      <ul className="mt-3 space-y-1">
-                        {t.subtasks.map((s) => (
-                          <li key={s.id}>
-                            <form action={toggleSubtask}>
-                              <input type="hidden" name="id" value={s.id} />
-                              <input type="hidden" name="done" value={s.status === "completed" ? "0" : "1"} />
-                              <TickButton done={s.status === "completed"} label={s.title} />
-                            </form>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  ) : (
-                    t.status !== "completed" && (
-                      <form action={updateTask} className="mt-4">
+                  </header>
+                  <div className="px-3 py-2">
+                    {t.subtasks.length > 0 ? (
+                      <>
+                        <div className="flex items-center gap-3 px-2 pb-1 pt-1.5">
+                          <Progress value={doneCount} max={t.subtasks.length} />
+                          <span className="font-mono text-xs text-muted">{doneCount}/{t.subtasks.length}</span>
+                        </div>
+                        <ul>
+                          {t.subtasks.map((s) => (
+                            <li key={s.id}>
+                              <form action={toggleSubtask}>
+                                <input type="hidden" name="id" value={s.id} />
+                                <input type="hidden" name="done" value={s.status === "completed" ? "0" : "1"} />
+                                <TickButton done={s.status === "completed"} label={s.title} />
+                              </form>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    ) : t.status !== "completed" ? (
+                      <form action={updateTask} className="p-1.5">
                         <input type="hidden" name="id" value={t.id} />
                         <input type="hidden" name="status" value="completed" />
-                        <FormButton variant="primary" pendingLabel="Saving…" className="h-12 px-6">
+                        <FormButton variant="primary" pendingLabel="Saving…" className="h-10 px-4">
                           <Check className="h-4 w-4" /> Mark done
                         </FormButton>
                       </form>
-                    )
-                  )}
-                </div>
+                    ) : (
+                      <div className="px-2 py-2 text-[13px] text-muted">Completed{t.completedAt && ` at ${localTime(t.completedAt, tz)}`}</div>
+                    )}
+                  </div>
+                </article>
               );
             })}
           </div>
-        </div>
-      </section>
+        </Card>
+      </div>
     </main>
   );
 }

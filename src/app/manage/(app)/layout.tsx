@@ -1,76 +1,96 @@
 import type { ReactNode } from "react";
-import { LogOut, MonitorSmartphone } from "lucide-react";
+import { and, asc, eq, isNotNull } from "drizzle-orm";
+import { ChevronsUpDown, LogOut } from "lucide-react";
 import Link from "next/link";
+import { db } from "@/db";
+import { attendance, employees } from "@/db/schema";
 import { Logo } from "@/components/brand";
-import { Avatar } from "@/components/ui";
+import { Avatar, Progress } from "@/components/ui";
+import { today } from "@/server/attendance";
 import { requireManager } from "@/server/auth";
 import { managerLogout } from "../login/actions";
-import { SideNav, TopNav } from "./nav";
+import { SideNav, StaffSearch, TopNav } from "./nav";
 
 export default async function ManageLayout({ children }: { children: ReactNode }) {
-  const { employee, business } = await requireManager();
+  const { employee, business, settings } = await requireManager();
+  const [staff, inToday] = await Promise.all([
+    db
+      .select({ id: employees.id, name: employees.fullName, code: employees.staffCode })
+      .from(employees)
+      .where(and(eq(employees.businessId, business.id), eq(employees.status, "active")))
+      .orderBy(asc(employees.fullName)),
+    db
+      .select({ id: attendance.id })
+      .from(attendance)
+      .where(and(eq(attendance.businessId, business.id), eq(attendance.workDate, today(settings)), isNotNull(attendance.clockInAt))),
+  ]);
 
-  const businessCard = (
-    <div className="rounded-xl bg-white/[0.06] p-3 ring-1 ring-inset ring-white/10">
-      <div className="truncate text-sm font-semibold text-white">{business.name}</div>
-      <div className="mt-1 flex items-center justify-between gap-2">
-        <span className="text-xs text-forest-200">Tablet code</span>
-        <span className="rounded-md bg-gold-400/15 px-2 py-0.5 font-mono text-xs font-bold tracking-widest text-gold-200">
-          {business.businessCode}
-        </span>
-      </div>
-    </div>
-  );
-
-  const userRow = (
-    <div className="flex items-center gap-3">
-      <Avatar name={employee.fullName} size="md" className="ring-2 ring-white/10" />
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-semibold text-white">{employee.fullName}</div>
-        <div className="text-xs text-forest-200">Senior · ID {employee.staffCode}</div>
-      </div>
-      <form action={managerLogout}>
-        <button title="Log out" className="rounded-lg p-2 text-forest-200 hover:bg-white/10 hover:text-white">
-          <LogOut className="h-4 w-4" />
-        </button>
-      </form>
-    </div>
+  const workspace = (
+    <Link href="/manage/settings" className="flex items-center gap-2.5 rounded-[10px] p-1.5 hover:bg-subtle">
+      <span className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-ink text-[13px] font-semibold text-white">
+        {business.name.trim()[0]?.toUpperCase()}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[14px] font-semibold">{business.name}</span>
+        <span className="block font-mono text-[11px] tracking-wider text-muted">{business.businessCode}</span>
+      </span>
+      <ChevronsUpDown className="h-4 w-4 text-faint" />
+    </Link>
   );
 
   return (
-    <div className="min-h-screen lg:pl-64">
-      {/* Desktop sidebar */}
-      <aside className="brand-texture fixed inset-y-0 left-0 z-20 hidden w-64 flex-col bg-forest-900 px-4 py-6 lg:flex">
-        <Link href="/manage" className="px-2">
-          <Logo tone="light" />
-        </Link>
-        <div className="mt-8 flex-1">
-          <SideNav />
-        </div>
-        <div className="space-y-4">
-          <Link href="/kiosk" className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-forest-200 hover:bg-white/5 hover:text-white">
-            <MonitorSmartphone className="h-4 w-4" /> Open clock-in tablet
-          </Link>
-          {businessCard}
-          <div className="border-t border-white/10 pt-4">{userRow}</div>
-        </div>
-      </aside>
-
-      {/* Mobile header */}
-      <header className="brand-texture sticky top-0 z-20 bg-forest-900 px-4 pt-3 lg:hidden">
-        <div className="mb-3 flex items-center justify-between">
-          <Logo tone="light" />
-          <div className="flex items-center gap-2">
-            <span className="rounded-md bg-gold-400/15 px-2 py-0.5 font-mono text-xs font-bold tracking-widest text-gold-200">{business.businessCode}</span>
-            <form action={managerLogout}>
-              <button title="Log out" className="rounded-lg p-2 text-forest-200 hover:bg-white/10"><LogOut className="h-4 w-4" /></button>
-            </form>
+    <div className="min-h-screen lg:p-2.5">
+      <div className="min-h-screen lg:flex lg:min-h-[calc(100vh-20px)] lg:overflow-hidden lg:rounded-[20px] lg:border lg:border-line lg:bg-surface lg:shadow-card">
+        {/* Sidebar */}
+        <aside className="sticky top-2.5 hidden h-[calc(100vh-20px)] w-[260px] shrink-0 flex-col border-r border-line bg-surface lg:flex">
+          <div className="border-b border-line p-3">{workspace}</div>
+          <div className="flex-1 overflow-y-auto p-3">
+            <StaffSearch staff={staff} />
+            <div className="mt-5">
+              <SideNav />
+            </div>
           </div>
-        </div>
-        <TopNav />
-      </header>
+          <div className="space-y-3 p-3">
+            <div className="rounded-[14px] border border-line bg-subtle p-3">
+              <div className="flex items-center justify-between text-[13px]">
+                <span className="text-muted">Clocked in today</span>
+                <span className="font-medium tabular-nums">{inToday.length}/{staff.length}</span>
+              </div>
+              <Progress value={inToday.length} max={staff.length} className="mt-2.5" />
+            </div>
+            <div className="flex items-center gap-2.5 rounded-[10px] p-1.5">
+              <Avatar name={employee.fullName} />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[13px] font-medium">{employee.fullName}</div>
+                <div className="text-xs text-muted">Senior · {employee.staffCode}</div>
+              </div>
+              <form action={managerLogout}>
+                <button title="Log out" className="rounded-lg p-2 text-muted hover:bg-sunken hover:text-ink">
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </form>
+            </div>
+          </div>
+        </aside>
 
-      <main className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-10 lg:py-9">{children}</main>
+        {/* Mobile header */}
+        <header className="sticky top-0 z-20 border-b border-line bg-surface/90 px-4 pt-3 backdrop-blur lg:hidden">
+          <div className="mb-3 flex items-center justify-between">
+            <Logo />
+            <div className="flex items-center gap-2">
+              <span className="rounded-md border border-line-strong px-2 py-0.5 font-mono text-xs text-muted">{business.businessCode}</span>
+              <form action={managerLogout}>
+                <button title="Log out" className="rounded-lg p-2 text-muted hover:bg-sunken"><LogOut className="h-4 w-4" /></button>
+              </form>
+            </div>
+          </div>
+          <TopNav />
+        </header>
+
+        <main className="min-w-0 flex-1 lg:h-[calc(100vh-22px)] lg:overflow-y-auto">
+          <div className="mx-auto max-w-[1240px] px-4 py-6 sm:px-6 lg:px-8 lg:py-7">{children}</div>
+        </main>
+      </div>
     </div>
   );
 }

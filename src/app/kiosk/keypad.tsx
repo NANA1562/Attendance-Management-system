@@ -45,79 +45,78 @@ export function Keypad() {
   const error = step === "pin" && !pending ? state?.error : null;
 
   return (
-    <div className="w-full max-w-[400px] rounded-[28px] bg-white/[0.04] p-6 ring-1 ring-inset ring-white/10 backdrop-blur-sm sm:p-7">
-      {/* steps */}
-      <div className="mb-5 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em]">
-        <span className={cx("rounded-full px-2.5 py-1", step === "id" ? "bg-gold-400 text-forest-950" : "bg-white/10 text-forest-200")}>1 · Staff ID</span>
-        <span className="h-px flex-1 bg-white/15" />
-        <span className={cx("rounded-full px-2.5 py-1", step === "pin" ? "bg-gold-400 text-forest-950" : "bg-white/10 text-forest-200")}>2 · PIN</span>
-      </div>
+    <div className="w-full max-w-[400px] rounded-[24px] border border-line bg-subtle p-[3px] shadow-pop">
+      <div className="rounded-[21px] border border-line bg-surface p-5 sm:p-6">
+        {/* steps, as underline tabs */}
+        <div className="mb-5 grid grid-cols-2 border-b border-line font-mono text-[11px] uppercase tracking-[0.12em]">
+          {(["id", "pin"] as const).map((s, i) => (
+            <span key={s} className={cx("-mb-px border-b-2 pb-2.5 text-center", step === s ? "border-ink text-ink" : "border-transparent text-faint")}>
+              0{i + 1} · {s === "id" ? "Staff ID" : "PIN"}
+            </span>
+          ))}
+        </div>
 
-      {/* display */}
-      <div className={cx("flex h-20 items-center justify-center rounded-2xl bg-forest-950/60 ring-1 ring-inset transition", error ? "ring-red-400/60" : "ring-white/10")}>
-        {step === "id" ? (
-          staffCode ? (
-            <span className="font-mono text-4xl font-semibold tracking-[0.3em] text-white">{staffCode}</span>
+        {/* display */}
+        <div className={cx("flex h-[72px] items-center justify-center rounded-[14px] border bg-subtle transition", error ? "border-red-300 bg-red-50" : "border-line-strong")}>
+          {step === "id" ? (
+            staffCode ? <span className="font-mono text-[34px] font-medium tracking-[0.25em]">{staffCode}</span> : <span className="text-[15px] text-faint">Enter your staff ID</span>
+          ) : pending ? (
+            <Loader2 className="h-7 w-7 animate-spin text-muted" />
           ) : (
-            <span className="text-base text-forest-200">Type your staff ID</span>
-          )
-        ) : pending ? (
-          <Loader2 className="h-8 w-8 animate-spin text-gold-400" />
-        ) : (
-          <div className="flex gap-4">
-            {[0, 1, 2, 3].map((i) => (
-              <span
-                key={i}
-                className={cx("h-4 w-4 rounded-full transition", i < pin.length ? "scale-110 bg-gold-400" : "bg-white/15")}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="mt-3 h-5 text-center text-sm font-medium">
-        {error ? <span className="text-red-300">{error}</span> : step === "pin" && <span className="text-forest-200">Staff ID {staffCode}</span>}
-      </div>
+            <div className="flex gap-4">
+              {[0, 1, 2, 3].map((i) => (
+                <span key={i} className={cx("h-3.5 w-3.5 rounded-full transition", i < pin.length ? "scale-110 bg-ink" : "border-2 border-line-strong bg-surface")} />
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="mt-2.5 h-5 text-center text-[13px]">
+          {error ? <span className="font-medium text-red-600">{error}</span> : step === "pin" && <span className="text-muted">Staff ID <b className="font-mono font-medium text-ink">{staffCode}</b></span>}
+        </div>
 
-      {/* keys */}
-      <div className="mt-3 grid grid-cols-3 gap-3">
-        {KEYS.map((k) => (
-          <button
-            key={k}
-            type="button"
-            onClick={() => press(k)}
-            className={cx(
-              "flex h-[72px] items-center justify-center rounded-2xl text-white ring-1 ring-inset ring-white/10 transition active:scale-95",
-              k === "clear" || k === "back" ? "bg-transparent text-forest-200 hover:bg-white/5" : "bg-white/[0.07] font-display text-[32px] font-medium hover:bg-white/[0.12] active:bg-gold-400 active:text-forest-950",
-            )}
-            aria-label={k === "back" ? "Delete" : k === "clear" ? "Clear" : k}
-          >
-            {k === "clear" ? <span className="text-sm font-semibold">Clear</span> : k === "back" ? <Delete className="h-6 w-6" /> : k}
-          </button>
-        ))}
-      </div>
+        {/* keys */}
+        <div className="mt-3 grid grid-cols-3 gap-2.5">
+          {KEYS.map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => press(k)}
+              aria-label={k === "back" ? "Delete" : k === "clear" ? "Clear" : k}
+              className={cx(
+                "flex h-[68px] items-center justify-center rounded-[14px] transition active:scale-95",
+                k === "clear" || k === "back"
+                  ? "text-muted hover:bg-subtle"
+                  : "border border-line-strong bg-surface text-[28px] font-medium shadow-card hover:bg-subtle active:bg-ink active:text-white",
+              )}
+            >
+              {k === "clear" ? <span className="text-[13px] font-medium">Clear</span> : k === "back" ? <Delete className="h-6 w-6" strokeWidth={1.75} /> : k}
+            </button>
+          ))}
+        </div>
 
-      <div className="mt-4">
-        {step === "id" ? (
-          <button
-            type="button"
-            disabled={!staffCode}
-            onClick={() => setStep("pin")}
-            className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gold-500 text-lg font-bold text-forest-950 shadow-lift transition hover:bg-gold-400 disabled:opacity-30"
-          >
-            Next <ArrowRight className="h-5 w-5" />
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => {
-              setStep("id");
-              setPin("");
-            }}
-            className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-semibold text-forest-100 ring-1 ring-inset ring-white/15 hover:bg-white/5"
-          >
-            <ArrowLeft className="h-5 w-5" /> Not you? Change ID
-          </button>
-        )}
+        <div className="mt-4">
+          {step === "id" ? (
+            <button
+              type="button"
+              disabled={!staffCode}
+              onClick={() => setStep("pin")}
+              className="flex h-14 w-full items-center justify-center gap-2 rounded-[14px] bg-ink text-[16px] font-medium text-white shadow-pop transition hover:bg-ink-2 disabled:opacity-25"
+            >
+              Continue <ArrowRight className="h-5 w-5" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setStep("id");
+                setPin("");
+              }}
+              className="flex h-14 w-full items-center justify-center gap-2 rounded-[14px] border border-line-strong bg-surface text-[15px] font-medium text-ink-2 shadow-card hover:bg-subtle"
+            >
+              <ArrowLeft className="h-5 w-5" /> Not you? Change ID
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

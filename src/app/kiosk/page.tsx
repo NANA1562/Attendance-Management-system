@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Logo } from "@/components/brand";
-import { Field, Input } from "@/components/ui";
+import { Card, Eyebrow, Field, Input } from "@/components/ui";
 import { getKiosk } from "@/server/auth";
 import { registerTablet } from "./actions";
 import { Clock } from "./clock";
@@ -12,43 +13,49 @@ export default async function KioskPage() {
 
   if (!kiosk) {
     return (
-      <main className="brand-texture flex min-h-screen flex-col bg-forest-950 px-6 py-8 text-white">
-        <Link href="/"><Logo tone="light" /></Link>
+      <main className="dot-grid flex min-h-screen flex-col px-6 py-6">
+        <Link href="/"><Logo /></Link>
         <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-md animate-fade-up rounded-3xl bg-surface p-8 text-ink shadow-lift">
-            <div className="text-xs font-bold uppercase tracking-[0.14em] text-gold-600">One-time setup</div>
-            <h1 className="mt-1 font-display text-3xl font-semibold">Set up this tablet</h1>
-            <p className="mt-2 text-sm text-ink-2">Enter your business code. The tablet remembers it, and your staff clock in here from now on.</p>
+          <Card className="w-full max-w-md animate-fade-up" bodyClassName="p-7">
+            <Eyebrow>One-time setup</Eyebrow>
+            <h1 className="mt-2 text-[26px] font-semibold tracking-tight">Set up this tablet</h1>
+            <p className="mt-1.5 text-[14px] text-muted">Enter your business code. The tablet remembers it, and staff clock in here from now on.</p>
             <ActionForm action={registerTablet} className="mt-6 space-y-4">
-              <Field label="Business code" hint="Find it in the manager dashboard sidebar.">
-                <Input name="businessCode" autoCapitalize="characters" required className="h-14 font-mono text-xl tracking-[0.3em] uppercase" />
+              <Field label="Business code" hint="It's in the manager dashboard sidebar.">
+                <Input name="businessCode" autoCapitalize="characters" required className="h-12 font-mono text-lg uppercase tracking-[0.3em]" />
               </Field>
-              <SubmitButton pendingLabel="Checking…" className="h-12 w-full text-base">Use this tablet</SubmitButton>
+              <SubmitButton pendingLabel="Checking…" className="h-11 w-full">Use this tablet</SubmitButton>
             </ActionForm>
-          </div>
+          </Card>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="brand-texture flex min-h-screen flex-col bg-forest-950 px-6 py-6 text-white sm:px-10">
+    <main className="dot-grid flex min-h-screen flex-col px-6 py-5 sm:px-10">
       <header className="flex items-center justify-between gap-4">
-        <Logo tone="light" />
-        <span className="rounded-full bg-white/10 px-3.5 py-1.5 text-sm font-semibold text-forest-100">{kiosk.business.name}</span>
+        <div className="flex items-center gap-3">
+          <Logo />
+          <span className="hidden h-5 w-px bg-line-strong sm:block" />
+          <span className="hidden text-[14px] font-medium text-ink-2 sm:block">{kiosk.business.name}</span>
+        </div>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface px-3 py-1 text-xs font-medium text-ink-2 shadow-card">
+          <span className="h-1.5 w-1.5 rounded-full bg-ok" /> Clock-in station
+        </span>
       </header>
 
-      <div className="flex flex-1 flex-col items-center justify-center gap-10 py-8 lg:flex-row lg:justify-between lg:px-6">
-        <div className="text-center lg:max-w-md lg:text-left">
+      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center gap-10 py-8 lg:flex-row lg:justify-between">
+        <div className="text-center lg:text-left">
           <Clock timeZone={kiosk.settings.timezone} size="xl" />
-          <p className="mt-6 hidden max-w-sm text-lg text-forest-100 lg:block">
+          <p className="mx-auto mt-8 hidden max-w-sm text-[16px] leading-relaxed text-ink-2 lg:mx-0 lg:block">
             Clock in, take your break and clock out here. Enter your staff ID, then your 4-digit PIN.
           </p>
         </div>
         <Keypad />
       </div>
 
-      <footer className="text-center text-xs text-forest-200/70">Your PIN is private. Never share it with anyone.</footer>
+      <footer className="flex items-center justify-center gap-1.5 text-xs text-muted"><ShieldCheck className="h-3.5 w-3.5" /> Your PIN is private. Never share it with anyone.</footer>
     </main>
   );
 }

@@ -6,7 +6,7 @@ import type { DayRow } from "@/server/attendance";
 
 /**
  * One row per person: scheduled shift as a dashed band, worked time as solid
- * green, breaks hatched gold, and a gold line for "now". Hovering a segment
+ * violet, breaks hatched amber, and a black line for "now". Hovering a segment
  * shows its exact times. The attendance table below is the table view.
  */
 export function ShiftTimeline({
@@ -62,7 +62,7 @@ export function ShiftTimeline({
             <div className="relative h-5">
               {hours.map((h, i) =>
                 i % step === 0 ? (
-                  <span key={h} className="absolute -translate-x-1/2 text-[11px] font-semibold tabular-nums text-muted" style={{ left: `${posMin(h * 60)}%` }}>
+                  <span key={h} className="absolute -translate-x-1/2 font-mono text-[11px] tabular-nums text-faint" style={{ left: `${posMin(h * 60)}%` }}>
                     {String(h).padStart(2, "0")}:00
                   </span>
                 ) : null,
@@ -77,10 +77,10 @@ export function ShiftTimeline({
               const role = roleName(r.employee.roleId);
               return (
                 <li key={r.employee.id} className="grid grid-cols-[minmax(140px,180px)_1fr_auto] items-center gap-4 py-3">
-                  <Link href={`/manage/staff/${r.employee.id}`} className="flex min-w-0 items-center gap-3 rounded-lg hover:opacity-80">
+                  <Link href={`/manage/staff/${r.employee.id}`} className="flex min-w-0 items-center gap-3 rounded-lg hover:opacity-70">
                     <Avatar name={r.employee.fullName} />
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-ink">{r.employee.fullName}</div>
+                      <div className="truncate text-[13px] font-medium text-ink">{r.employee.fullName}</div>
                       <div className="truncate text-xs text-muted">
                         {plan ? `${plan.start}–${plan.end}` : "Unscheduled"}
                         {role && ` · ${role}`}
@@ -96,7 +96,7 @@ export function ShiftTimeline({
                     {/* scheduled shift */}
                     {plan && (
                       <span
-                        className="absolute inset-y-1 rounded-lg border border-dashed border-forest-200 bg-forest-50/70"
+                        className="absolute inset-y-1 rounded-lg border border-dashed border-line-strong bg-subtle"
                         style={{ left: `${posMin(timeToMinutes(plan.start))}%`, width: `${posMin(timeToMinutes(plan.end)) - posMin(timeToMinutes(plan.start))}%` }}
                       />
                     )}
@@ -115,25 +115,25 @@ export function ShiftTimeline({
                         >
                           <span
                             className={cx(
-                              "block h-full rounded-[4px] transition group-hover/seg:brightness-110 group-focus/seg:ring-2 group-focus/seg:ring-forest-500",
-                              s.kind === "work" ? "bg-forest-500" : "hatch-gold ring-1 ring-inset ring-gold-500/60",
+                              "block h-full rounded-[4px] transition group-hover/seg:brightness-110 group-focus/seg:ring-2 group-focus/seg:ring-accent-400",
+                              s.kind === "work" ? "bg-accent-600" : "hatch-break ring-1 ring-inset ring-break/60",
                               s.open && "animate-pulse",
                             )}
                           />
-                          <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-ink px-2.5 py-1.5 text-xs font-semibold text-white shadow-lift group-hover/seg:block group-focus/seg:block">
+                          <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-ink px-2.5 py-1.5 text-xs font-semibold text-white shadow-pop group-hover/seg:block group-focus/seg:block">
                             {label}
                           </span>
                         </span>
                       );
                     })}
                     {nowPos !== null && nowPos > 0 && nowPos < 100 && (
-                      <span className="absolute -inset-y-1 w-0.5 rounded-full bg-gold-500" style={{ left: `${nowPos}%` }} />
+                      <span className="absolute -inset-y-1 w-0.5 rounded-full bg-ink" style={{ left: `${nowPos}%` }} />
                     )}
                   </div>
 
                   <div className="flex w-[140px] flex-col items-start gap-1">
                     <StatusBadge status={r.result.status} />
-                    {r.result.state === "on_break" && <span className="text-[11px] font-semibold text-gold-700">On break</span>}
+                    {r.result.state === "on_break" && <span className="text-[11px] font-semibold text-late">On break</span>}
                     {r.result.missingClockOut && <span className="text-[11px] font-semibold text-absent">No clock-out</span>}
                   </div>
                 </li>
@@ -144,11 +144,11 @@ export function ShiftTimeline({
       </div>
 
       {/* Legend */}
-      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-line pt-4 text-xs font-medium text-ink-2">
-        <span className="flex items-center gap-2"><span className="h-3 w-6 rounded border border-dashed border-forest-200 bg-forest-50" /> Scheduled</span>
-        <span className="flex items-center gap-2"><span className="h-3 w-6 rounded-[4px] bg-forest-500" /> Worked</span>
-        <span className="flex items-center gap-2"><span className="hatch-gold h-3 w-6 rounded-[4px] ring-1 ring-inset ring-gold-500/60" /> Break</span>
-        {isToday && <span className="flex items-center gap-2"><span className="h-3 w-0.5 rounded-full bg-gold-500" /> Now</span>}
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-line pt-4 text-xs text-muted">
+        <span className="flex items-center gap-2"><span className="h-3 w-6 rounded border border-dashed border-line-strong bg-subtle" /> Scheduled</span>
+        <span className="flex items-center gap-2"><span className="h-3 w-6 rounded-[4px] bg-accent-600" /> Worked</span>
+        <span className="flex items-center gap-2"><span className="hatch-break h-3 w-6 rounded-[4px] ring-1 ring-inset ring-break/60" /> Break</span>
+        {isToday && <span className="flex items-center gap-2"><span className="h-3 w-0.5 rounded-full bg-ink" /> Now</span>}
         {offBoard.length > 0 && (
           <span className="ml-auto text-muted">
             Off or on leave: {offBoard.map((r) => r.employee.fullName.split(" ")[0]).join(", ")}

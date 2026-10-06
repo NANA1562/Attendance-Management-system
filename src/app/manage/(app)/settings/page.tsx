@@ -1,4 +1,4 @@
-import { MonitorSmartphone, Ruler } from "lucide-react";
+import { MonitorSmartphone, Ruler, Settings } from "lucide-react";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { FormButton } from "@/components/form-button";
 import { Card, Field, Input, PageHeader, STATUS_STYLE } from "@/components/ui";
@@ -20,13 +20,13 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Business" title="Settings" description="Rules for this business. Changes apply to how every day is worked out, including past days." />
-      <div className="grid max-w-4xl gap-6">
-        <Card title={<span className="flex items-center gap-2"><Ruler className="h-4 w-4 text-gold-600" /> Arrival rules</span>} description="Measured from each person's scheduled start time.">
+      <PageHeader icon={Settings} title="Settings" description="Rules for this business. Changes apply to how every day is worked out, including past days." />
+      <div className="grid max-w-4xl gap-4">
+        <Card title={<span className="flex items-center gap-2"><Ruler className="h-4 w-4 text-muted" /> Arrival rules</span>} description="Measured from each person's scheduled start time.">
           {/* Visual scale */}
-          <div className="mb-8 rounded-xl bg-canvas p-5">
-            <div className="flex h-10 gap-0.5 overflow-hidden rounded-lg">
-              <div className="flex w-14 shrink-0 items-center justify-center bg-forest-500 text-[11px] font-bold text-white">START</div>
+          <div className="dot-grid mb-6 rounded-[14px] border border-line bg-subtle p-5">
+            <div className="flex h-9 gap-0.5 overflow-hidden rounded-[10px] shadow-card">
+              <div className="flex w-14 shrink-0 items-center justify-center bg-ok font-mono text-[10px] font-medium text-white">START</div>
               {bands.map((b) => (
                 <div
                   key={b.status}
@@ -34,16 +34,16 @@ export default async function SettingsPage() {
                   style={{ width: `${((b.to - b.from) / total) * 100}%` }}
                 />
               ))}
-              <div className="flex w-20 shrink-0 items-center justify-center bg-absent text-[11px] font-bold text-white">ABSENT</div>
+              <div className="flex w-20 shrink-0 items-center justify-center bg-absent font-mono text-[10px] font-medium text-white">ABSENT</div>
             </div>
             <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs">
-              <span className="flex items-center gap-1.5 font-semibold"><span className="h-2.5 w-2.5 rounded-full bg-ok" /> {STATUS_LABEL.on_time}: on or before start</span>
+              <span className="flex items-center gap-1.5 font-medium text-ink-2"><span className="h-2.5 w-2.5 rounded-full bg-ok" /> {STATUS_LABEL.on_time}: on or before start</span>
               {bands.map((b) => (
-                <span key={b.status} className="flex items-center gap-1.5 font-semibold">
+                <span key={b.status} className="flex items-center gap-1.5 font-medium text-ink-2">
                   <span className={`h-2.5 w-2.5 rounded-full ${STATUS_STYLE[b.status].dot}`} /> {STATUS_LABEL[b.status]}: {b.label}
                 </span>
               ))}
-              <span className="flex items-center gap-1.5 font-semibold"><span className="h-2.5 w-2.5 rounded-full bg-absent" /> Absent: no clock-in by {s.absentAfterMinutes} min</span>
+              <span className="flex items-center gap-1.5 font-medium text-ink-2"><span className="h-2.5 w-2.5 rounded-full bg-absent" /> Absent: no clock-in by {s.absentAfterMinutes} min</span>
             </div>
           </div>
 
@@ -54,7 +54,7 @@ export default async function SettingsPage() {
               <Field label="Absent after (min)" hint="No clock-in by then = Absent"><Input type="number" name="absentAfterMinutes" defaultValue={s.absentAfterMinutes} min={0} required /></Field>
             </div>
             <div className="border-t border-line pt-5">
-              <div className="mb-3 text-sm font-bold">Breaks, security and time</div>
+              <div className="mb-3 text-[13px] font-semibold">Breaks, security and time</div>
               <div className="grid gap-4 sm:grid-cols-3">
                 <Field label="Default break (min)" hint="Pre-filled on new schedules"><Input type="number" name="defaultBreakMinutes" defaultValue={s.defaultBreakMinutes} min={0} required /></Field>
                 <Field label="Lock after (wrong PINs)"><Input type="number" name="lockoutAttempts" defaultValue={s.lockoutAttempts} min={1} required /></Field>
@@ -66,11 +66,11 @@ export default async function SettingsPage() {
           </ActionForm>
         </Card>
 
-        <Card title={<span className="flex items-center gap-2"><MonitorSmartphone className="h-4 w-4 text-gold-600" /> Clock-in tablet</span>}>
+        <Card title={<span className="flex items-center gap-2"><MonitorSmartphone className="h-4 w-4 text-muted" /> Clock-in tablet</span>}>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <div className="text-sm text-ink-2">Business code, entered once on the tablet</div>
-              <div className="mt-1 font-mono text-3xl font-bold tracking-[0.3em] text-forest-800">{business.businessCode}</div>
+              <div className="text-[13px] text-muted">Business code, entered once on the tablet</div>
+              <div className="mt-1 font-mono text-3xl font-semibold tracking-[0.3em] text-ink">{business.businessCode}</div>
             </div>
             <form action={resetTablet}>
               <FormButton variant="secondary">Disconnect tablet on this device</FormButton>

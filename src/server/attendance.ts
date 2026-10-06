@@ -257,3 +257,73 @@ export async function saveLateReason(employee: Employee, settings: Settings, rea
     .where(and(eq(attendance.employeeId, employee.id), eq(attendance.workDate, workDate)));
   await audit({ businessId: employee.businessId, employeeId: employee.id, action: "late_reason_added", targetType: "employee", targetId: employee.id });
 }
+
+export interface DaySummary {
+  date: string;
+  scheduled: number;
+  present: number;
+  onTime: number;
+  late: number;
+  absent: number;
+}
+
+export interface PersonSummary {
+  employee: Employee;
+  scheduledDays: number;
+  presentDays: number;
+  onTimeDays: number;
+  lateDays: number;
+  minutesWorked: number;
+}
+
+/**
+ * Per-day counts and per-person totals over a date range (inclusive), for the
+ * trend chart and punctuality leaderboard. Days before someone started are skipped.
+ */
+export async function rangeOverview(businessId: string, settings: Settings, from: string, to: string) {
+  const staff = await db
+    .select()
+    .from(employees)
+    .where(and(eq(employees.businessId, businessId), eq(employees.status, "active")))
+    .orderBy(asc(employees.fullName));
+  const data = await loadRange(
+    businessId,
+    staff.map((e) => e.id),
+    from,
+    to,
+  );
+  const now = new Date();
+  const days: DaySummary[] = [];
+  const people = new Map<string, PersonSummary>(
+    staff.map((e) => [e.id, { employee: e, scheduledDays: 0, presentDays: 0, onTimeDays: 0, lateDays: 0, minutesWorked: 0 }]),
+  );
+
+  for (let d = from; d <= to; d = addDays(d, 1)) {
+    const day: DaySummary = { date: d, scheduled: 0, present: 0, onTime: 0, late: 0, absent: 0 };
+    for (const e of staff) {
+      if (startDate(e, settings) > d) continue;
+      const { plan, result: r } = buildRow(e, d, data, settings, now);
+      const p = people.get(e.id)!;
+      if (plan.kind === "working") {
+        day.scheduled++;
+        p.scheduledDays++;
+      }
+      if (r.clockInAt) {
+        day.present++;
+        p.presentDays++;
+      }
+      if (r.status === "on_time" || r.status === "grace") {
+        day.onTime++;
+        p.onTimeDays++;
+      }
+      if (r.status === "late" || r.status === "attendance_risk") {
+        day.late++;
+        p.lateDays++;
+      }
+      if (r.status === "absent") day.absent++;
+      p.minutesWorked += Math.round((r.hoursWorked ?? 0) * 60);
+    }
+    days.push(day);
+  }
+  return { days, people: [...people.values()] };
+}

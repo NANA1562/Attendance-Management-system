@@ -57,21 +57,22 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
 
   return (
     <div className="space-y-6">
-      <Link href="/manage/staff" className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-2 hover:text-ink"><ArrowLeft className="h-4 w-4" /> All staff</Link>
+      <Link href="/manage/staff" className="inline-flex items-center gap-1.5 text-[13px] font-medium text-muted hover:text-ink"><ArrowLeft className="h-4 w-4" /> All staff</Link>
 
       {/* Profile header */}
-      <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
-        <div className="brand-texture h-20 bg-forest-900" />
+      <section className="overflow-hidden rounded-[18px] border border-line bg-subtle p-[3px]">
+        <div className="overflow-hidden rounded-[15px] border border-line bg-surface shadow-card">
+        <div className="dot-grid h-20 border-b border-line bg-subtle" />
         <div className="flex flex-wrap items-end gap-5 px-6 pb-6">
           <Avatar name={employee.fullName} size="xl" className="-mt-8 ring-4 ring-surface" />
           <div className="min-w-0 flex-1 pt-3">
-            <h1 className="font-display text-3xl font-semibold tracking-tight">{employee.fullName}</h1>
+            <h1 className="text-[22px] font-semibold tracking-tight">{employee.fullName}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span className="rounded-md bg-sunken px-2 py-1 font-mono text-xs font-bold">ID {employee.staffCode}</span>
-              {employee.level === "senior" ? <Pill tone="bg-gold-100 text-gold-700">Senior</Pill> : <Pill>Junior</Pill>}
-              {role && <Pill tone="bg-forest-50 text-forest-700">{role.name}</Pill>}
-              {employee.status === "inactive" && <Pill tone="bg-sunken text-muted">Inactive</Pill>}
-              {locked && <Pill tone="bg-red-50 text-absent"><Lock className="h-3 w-3" /> Locked out</Pill>}
+              <span className="rounded-md border border-line-strong bg-subtle px-1.5 py-0.5 font-mono text-xs">ID {employee.staffCode}</span>
+              {employee.level === "senior" ? <Pill tone="bg-accent-50 text-accent-700 ring-accent-200/70">Senior</Pill> : <Pill>Junior</Pill>}
+              {role && <Pill>{role.name}</Pill>}
+              {employee.status === "inactive" && <Pill>Inactive</Pill>}
+              {locked && <Pill tone="bg-red-50 text-red-700 ring-red-200/70"><Lock className="h-3 w-3" /> Locked out</Pill>}
             </div>
           </div>
           <dl className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4 lg:w-auto">
@@ -81,18 +82,19 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
               ["Hours", duration(totalMinutes) || "0m", "last 14 days"],
               ["Overtime", duration(overtime) || "0m", "last 14 days"],
             ].map(([label, value, sub]) => (
-              <div key={label} className="rounded-xl bg-canvas px-4 py-3">
+              <div key={label} className="rounded-[12px] border border-line bg-subtle px-4 py-3">
                 <dt className="text-xs font-semibold text-muted">{label}</dt>
-                <dd className="font-display text-2xl font-semibold tabular-nums">{value}</dd>
+                <dd className="text-[22px] font-semibold tracking-tight tabular-nums">{value}</dd>
                 <dd className="text-[11px] text-muted">{sub}</dd>
               </div>
             ))}
           </dl>
         </div>
+        </div>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title={<span className="flex items-center gap-2"><UserRound className="h-4 w-4 text-gold-600" /> Details</span>}>
+        <Card title={<span className="flex items-center gap-2"><UserRound className="h-4 w-4 text-muted" /> Details</span>}>
           <ActionForm action={updateStaff} className="space-y-4">
             <input type="hidden" name="employeeId" value={employee.id} />
             <Field label="Full name"><Input name="fullName" defaultValue={employee.fullName} required /></Field>
@@ -125,11 +127,11 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
           </ActionForm>
         </Card>
 
-        <Card title={<span className="flex items-center gap-2"><KeyRound className="h-4 w-4 text-gold-600" /> Access</span>}>
+        <Card title={<span className="flex items-center gap-2"><KeyRound className="h-4 w-4 text-muted" /> Access</span>}>
           <div className="space-y-5">
             <ActionForm action={resetPin}>
               <input type="hidden" name="employeeId" value={employee.id} />
-              <div className="flex items-center justify-between gap-4 rounded-xl bg-canvas p-4">
+              <div className="flex items-center justify-between gap-4 rounded-[12px] border border-line bg-subtle p-4">
                 <div>
                   <div className="text-sm font-semibold">Clock-in PIN</div>
                   <p className="text-xs text-muted">Stored securely and never shown. Reset to issue a new one.</p>
@@ -152,7 +154,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
             </ActionForm>
 
             {locked && (
-              <form action={unlockStaff} className="flex items-center justify-between gap-4 rounded-xl bg-red-50 p-4">
+              <form action={unlockStaff} className="flex items-center justify-between gap-4 rounded-[12px] bg-red-50 p-4 ring-1 ring-inset ring-red-200/70">
                 <input type="hidden" name="employeeId" value={employee.id} />
                 <p className="text-sm font-semibold text-absent">Locked after too many wrong PINs.</p>
                 <FormButton variant="danger">Unlock now</FormButton>
@@ -163,7 +165,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
       </div>
 
       <Card
-        title={<span className="flex items-center gap-2"><CalendarRange className="h-4 w-4 text-gold-600" /> Weekly schedule</span>}
+        title={<span className="flex items-center gap-2"><CalendarRange className="h-4 w-4 text-muted" /> Weekly schedule</span>}
         description={`${duration(weeklyMinutes) || "0m"} expected per week after breaks. Unticked days are days off.`}
       >
         <ActionForm action={saveSchedule}>
@@ -173,9 +175,9 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
               const row = weekly.find((s) => s.dayOfWeek === d);
               const working = !!row && !row.isDayOff;
               return (
-                <div key={d} className="grid grid-cols-[auto_1fr] items-center gap-3 rounded-xl border border-line px-4 py-3 has-[:checked]:border-forest-200 has-[:checked]:bg-forest-50/40 sm:grid-cols-[160px_1fr_1fr_120px] sm:gap-4">
+                <div key={d} className="grid grid-cols-[auto_1fr] items-center gap-3 rounded-[12px] border border-line px-4 py-2.5 has-[:checked]:bg-surface bg-subtle/60 sm:grid-cols-[160px_1fr_1fr_120px] sm:gap-4">
                   <label className="flex items-center gap-3 font-semibold">
-                    <input type="checkbox" name={`work_${d}`} defaultChecked={working} className="h-5 w-5 accent-[var(--color-forest-600)]" />
+                    <input type="checkbox" name={`work_${d}`} defaultChecked={working} className="h-5 w-5 accent-[var(--color-ink)]" />
                     {DAY_NAMES[d]}
                   </label>
                   <div className="col-span-2 grid grid-cols-3 gap-2 sm:contents">
@@ -196,7 +198,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title={<span className="flex items-center gap-2"><Palmtree className="h-4 w-4 text-gold-600" /> Record leave</span>}>
+        <Card title={<span className="flex items-center gap-2"><Palmtree className="h-4 w-4 text-muted" /> Record leave</span>}>
           <ActionForm action={addLeave} className="space-y-4" resetOnSuccess>
             <input type="hidden" name="employeeId" value={employee.id} />
             <div className="grid grid-cols-2 gap-3">
@@ -224,9 +226,9 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
           ) : (
             <ul className="space-y-2">
               {leaves.map((l) => (
-                <li key={l.id} className={cx("flex items-center justify-between gap-3 rounded-xl border border-line p-3", l.status === "cancelled" && "opacity-50")}>
+                <li key={l.id} className={cx("flex items-center justify-between gap-3 rounded-[12px] border border-line p-3", l.status === "cancelled" && "opacity-50")}>
                   <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-50 text-leave"><Palmtree className="h-4 w-4" /></span>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-[9px] border border-line-strong bg-surface text-leave shadow-card"><Palmtree className="h-4 w-4" /></span>
                     <div>
                       <div className={cx("text-sm font-semibold", l.status === "cancelled" && "line-through")}>
                         {prettyDate(l.startDate)}{l.endDate !== l.startDate && ` – ${prettyDate(l.endDate)}`}
@@ -249,27 +251,27 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
         </Card>
       </div>
 
-      <Card title="Last 14 days" description="Worked out live from the schedule, leave and clock-ins.">
+      <Card title="Last 14 days" description="Worked out live from the schedule, leave and clock-ins." flush>
         {history.length === 0 ? (
-          <Empty title="No history yet" />
+          <div className="px-5 pb-5"><Empty title="No history yet" /></div>
         ) : (
           <Table minWidth={760}>
-            <thead className="border-b border-line">
+            <thead>
               <tr><Th>Date</Th><Th>Status</Th><Th>Shift</Th><Th>In</Th><Th>Out</Th><Th>Break</Th><Th>Hours</Th><Th>Over / under</Th></tr>
             </thead>
-            <tbody className="divide-y divide-line">
+            <tbody>
               {history.map(({ workDate, plan, result: r }) => (
-                <tr key={workDate} className="hover:bg-canvas/60">
+                <tr key={workDate} className="hover:bg-subtle">
                   <Td><Link href={`/manage?date=${workDate}`} className="font-semibold hover:underline">{prettyDate(workDate)}</Link></Td>
                   <Td>
                     <div className="flex flex-wrap items-center gap-1">
                       <StatusBadge status={r.status} />
-                      {r.missingClockOut && <Pill tone="bg-red-50 text-absent">No clock-out</Pill>}
+                      {r.missingClockOut && <Pill tone="bg-red-50 text-red-700 ring-red-200/70">No clock-out</Pill>}
                     </div>
                   </Td>
                   <Td className="tabular-nums text-ink-2">{plan.kind === "working" ? `${plan.start}–${plan.end}` : "—"}</Td>
-                  <Td className="tabular-nums font-medium">{clock(r.clockInAt, tz)}</Td>
-                  <Td className="tabular-nums font-medium">{clock(r.clockOutAt, tz)}</Td>
+                  <Td className="font-mono tabular-nums">{clock(r.clockInAt, tz)}</Td>
+                  <Td className="font-mono tabular-nums">{clock(r.clockOutAt, tz)}</Td>
                   <Td className="tabular-nums text-ink-2">{duration(r.breakMinutes)}</Td>
                   <Td className="tabular-nums font-semibold">{hours(r.hoursWorked)}</Td>
                   <Td className="tabular-nums">

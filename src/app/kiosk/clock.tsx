@@ -11,16 +11,22 @@ const snapshot = () => Math.floor(Date.now() / 15000) * 15000;
 
 export function Clock({ timeZone, size = "md" }: { timeZone: string; size?: "md" | "xl" }) {
   const ts = useSyncExternalStore(subscribe, snapshot, () => null);
-  if (ts === null) return <div className={size === "xl" ? "h-28" : "h-12"} />;
+  if (ts === null) return <div className={size === "xl" ? "h-28" : "h-10"} />;
   const now = new Date(ts);
+  const time = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone });
+  const date = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone });
+  if (size === "md") {
+    return (
+      <span className="inline-flex items-center gap-2 rounded-[10px] border border-line-strong bg-surface px-3 py-1.5 text-[13px] shadow-card">
+        <span className="font-semibold tabular-nums">{time}</span>
+        <span className="text-muted">{date}</span>
+      </span>
+    );
+  }
   return (
-    <div className={size === "xl" ? "" : "text-right"}>
-      <div className={size === "xl" ? "font-display text-7xl font-semibold tabular-nums tracking-tight sm:text-8xl" : "font-display text-3xl font-semibold tabular-nums"}>
-        {now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone })}
-      </div>
-      <div className={size === "xl" ? "mt-2 text-lg text-forest-200" : "text-sm text-forest-200"}>
-        {now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone })}
-      </div>
+    <div>
+      <div className="text-[88px] font-semibold leading-none tracking-[-0.04em] tabular-nums sm:text-[112px]">{time}</div>
+      <div className="mt-3 text-lg text-muted">{date}</div>
     </div>
   );
 }
